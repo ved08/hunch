@@ -1,0 +1,10 @@
+{
+  "name": "@hunch/tailwind-config",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "main": "preset.ts",
+  "dependencies": {
+    "tailwindcss": "^3.4.0"
+  }
+}
