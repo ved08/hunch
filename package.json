@@ -1,9 +1,11 @@
 {
   "name": "hunchdotfun",
   "private": true,
+  "workspaces": ["apps/*", "packages/*", "tooling/*"],
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "backend": "bun run --filter @hunch/api dev",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "clean": "turbo run clean && rm -rf node_modules",
@@ -13,5 +15,5 @@
   "devDependencies": {
     "turbo": "^2.4.0"
   },
-  "packageManager": "pnpm@9.15.4"
+  "packageManager": "bun@1.2.18"
 }

@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "@hunch/tsconfig": "workspace:*",
+    "@types/node": "^25.6.0",
     "typescript": "^5.7.0"
   }
 }

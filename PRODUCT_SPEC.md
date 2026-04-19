@@ -92,19 +92,7 @@ Every trade automatically generates a broadcast card. No extra action needed —
 - Broadcasts are immutable — tied to on-chain transactions, can't be faked or deleted
 - Both entry AND exit are broadcast (so users can't hide losses)
 - "Follow this prediction" = buy the same side at current price (attributed to broadcaster)
-- "Take NO" = counter-prediction, creates visible debate
-
-### 3. Counter-Predictions (Engagement Driver)
-
-When someone broadcasts YES, others can publicly take the NO side. This creates visible debates.
-
-```
-Ved says YES at $0.35  <->  Anon says NO at $0.65
-$50 bet                     $30 bet
-8/10 track record           6/10 track record
-```
-
-Counter-predictions are the mechanic that makes this social, not just a feed of one-sided posts. They drive engagement, comments, and return visits to see who was right.
+  
 
 ### 4. Conviction Score (Reputation System)
 
@@ -126,7 +114,6 @@ Conviction score is the moat — it's a portable, verifiable reputation that use
 When a market settles:
 - All participants get a push notification + result card
 - Winners get a shareable "I called it" card showing their entry price, payout, and P&L
-- Losers get a "better luck next time" card (still shareable — people share losses for clout too)
 - Resolution cards are optimized for sharing to X, Telegram, WhatsApp, etc. via Android's native share sheet
 
 This is the viral moment. People share wins (and funny losses) organically.

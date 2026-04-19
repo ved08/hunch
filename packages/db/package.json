@@ -5,13 +5,23 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
-    "build": "tsc",
+    "db:generate": "bun x drizzle-kit generate",
+    "db:migrate": "bun src/migrate.ts",
+    "db:dev": "bun run db:generate && bun run db:migrate",
+    "db:push": "bun x drizzle-kit push",
+    "db:studio": "bun x drizzle-kit studio",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
+  "dependencies": {
+    "drizzle-orm": "^0.45.2"
+  },
   "devDependencies": {
     "@hunch/tsconfig": "workspace:*",
-    "@types/node": "^25.6.0",
+    "@types/bun": "^1.1.14",
+    "dotenv": "^17.4.2",
+    "drizzle-kit": "^0.31.10",
+    "postgres": "^3.4.9",
     "typescript": "^5.7.0"
   }
 }
