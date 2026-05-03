@@ -9,7 +9,6 @@ import {
 } from "drizzle-orm/pg-core";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
-export const eventStatus = pgEnum("event_status", ["open", "closed", "resolved"]);
 export const broadcastSide = pgEnum("broadcast_side", ["YES", "NO"]);
 export const broadcastDepositMint = pgEnum("broadcast_deposit_mint", ["USDC", "JUPUSD"]);
 export const broadcastKind = pgEnum("broadcast_kind", ["OPEN"]);
@@ -30,11 +29,13 @@ export const events = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     jupiterEventId: text("jupiter_event_id").notNull().unique(),
     title: text("title").notNull(),
+    slug: text("slug"),
+    category: text("category"),
+    imageUrl: text("image_url"),
     closesAt: timestamp("closes_at", { withTimezone: true }),
-    status: eventStatus("status").notNull().default("open"),
-    cachedAt: timestamp("cached_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("events_status_idx").on(t.status)]
+  (t) => [index("events_category_idx").on(t.category)]
 );
 
 export const markets = pgTable(
@@ -46,9 +47,14 @@ export const markets = pgTable(
       .references(() => events.id, { onDelete: "cascade" }),
     jupiterMarketId: text("jupiter_market_id").notNull().unique(),
     question: text("question").notNull(),
-    cachedAt: timestamp("cached_at", { withTimezone: true }).notNull().defaultNow(),
+    imageUrl: text("image_url"),
+    closeTime: timestamp("close_time", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("markets_event_idx").on(t.eventId)]
+  (t) => [
+    index("markets_event_idx").on(t.eventId),
+    index("markets_close_time_idx").on(t.closeTime),
+  ]
 );
 
 export const broadcasts = pgTable(
