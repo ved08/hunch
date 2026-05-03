@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "hunch",
+    "slug": "hunch",
+    "version": "0.0.1",
+    "scheme": "hunch",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0A0B"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "fun.hunch.app"
+    },
+    "android": {
+      "package": "fun.hunch.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0A0A0B"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

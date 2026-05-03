@@ -1,21 +1,33 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import type { PredictionApi } from "@hunch/jupiter";
-import type { SolanaRpc } from "../rpc.js";
+import type { Deps } from "../deps.js";
+import { statusFor } from "../http.js";
+import { ensureUser } from "../services/ensure-user.js";
+import { ensureMarket } from "../services/ensure-market.js";
+import * as broadcastsRepo from "../repos/broadcasts.js";
+
+const IntegerString = z.string().regex(/^\d+$/, "must be an integer string");
 
 const BuildBody = z.object({
   marketId: z.string().min(1),
   side: z.enum(["YES", "NO"]),
-  amountNative: z.string().regex(/^\d+$/, "amountNative must be an integer string (1,000,000 = $1)"),
+  amountNative: IntegerString,
   depositMint: z.enum(["USDC", "JUPUSD"]),
   walletAddress: z.string().min(32),
 });
 
 const SubmitBody = z.object({
   signedTx: z.string().min(1),
+  marketId: z.string().min(1),
+  side: z.enum(["YES", "NO"]),
+  amountNative: IntegerString,
+  entryPriceNative: IntegerString,
+  depositMint: z.enum(["USDC", "JUPUSD"]),
+  orderPubkey: z.string().min(1),
+  walletAddress: z.string().min(32),
 });
 
-export function betRoutes(prediction: PredictionApi, rpc: SolanaRpc) {
+export function betRoutes(deps: Deps) {
   const app = new Hono();
 
   app.post("/bet/build", async (c) => {
@@ -23,10 +35,35 @@ export function betRoutes(prediction: PredictionApi, rpc: SolanaRpc) {
     if (!parsed.success) {
       return c.json({ error: { code: "BAD_REQUEST", issues: parsed.error.issues } }, 400);
     }
-    const res = await prediction.placeOrder(parsed.data);
+
+    try {
+      await ensureUser(deps, parsed.data.walletAddress);
+    } catch (err) {
+      console.error(
+        JSON.stringify({
+          level: "error",
+          event: "ensure-user-failed",
+          wallet: parsed.data.walletAddress,
+          message: (err as Error)?.message ?? String(err),
+        })
+      );
+      return c.json({ error: { code: "DB_ERROR", message: "Could not ensure user" } }, 500);
+    }
+
+    ensureMarket(deps, parsed.data.marketId).catch((err: unknown) =>
+      console.error(
+        JSON.stringify({
+          level: "warn",
+          event: "ensure-market-failed",
+          jupiterMarketId: parsed.data.marketId,
+          message: (err as Error)?.message ?? String(err),
+        })
+      )
+    );
+
+    const res = await deps.prediction.placeOrder(parsed.data);
     if (!res.ok) {
-      const status = res.error.code === "RATE_LIMITED" ? 429 : 502;
-      return c.json({ error: res.error }, status);
+      return c.json({ error: res.error }, statusFor(res.error));
     }
     return c.json(res.result);
   });
@@ -36,9 +73,43 @@ export function betRoutes(prediction: PredictionApi, rpc: SolanaRpc) {
     if (!parsed.success) {
       return c.json({ error: { code: "BAD_REQUEST", issues: parsed.error.issues } }, 400);
     }
-    const res = await rpc.sendTransaction(parsed.data.signedTx);
-    if (!res.ok) return c.json({ error: res.error }, 502);
-    return c.json({ sig: res.result });
+
+    const sent = await deps.rpc.sendTransaction(parsed.data.signedTx);
+    if (!sent.ok) {
+      return c.json({ error: sent.error }, 502);
+    }
+    const sig = sent.result;
+
+    try {
+      const [user, market] = await Promise.all([
+        ensureUser(deps, parsed.data.walletAddress),
+        ensureMarket(deps, parsed.data.marketId),
+      ]);
+
+      const broadcast = await broadcastsRepo.insertConfirmed(deps.db, {
+        userId: user.id,
+        marketId: market.id,
+        side: parsed.data.side,
+        amountNative: BigInt(parsed.data.amountNative),
+        entryPriceNative: BigInt(parsed.data.entryPriceNative),
+        depositMint: parsed.data.depositMint,
+        orderPubkey: parsed.data.orderPubkey,
+        txSig: sig,
+      });
+
+      return c.json({ sig, broadcastId: broadcast.id });
+    } catch (err) {
+      console.error(
+        JSON.stringify({
+          level: "error",
+          event: "broadcast-persist-failed",
+          orderPubkey: parsed.data.orderPubkey,
+          sig,
+          message: (err as Error)?.message ?? String(err),
+        })
+      );
+      return c.json({ sig, broadcastId: null, warning: "PERSIST_FAILED" });
+    }
   });
 
   return app;

@@ -43,3 +43,9 @@ pnpm-debug.log*
 
 # Testing
 coverage/
+
+# TS incremental build cache
+*.tsbuildinfo
+
+# Claude session transcripts (do not commit)
+claude-session.jsonl

@@ -5,7 +5,6 @@ export {
   markets,
   broadcasts,
   follows,
-  eventStatus,
   broadcastSide,
   broadcastDepositMint,
   broadcastKind,

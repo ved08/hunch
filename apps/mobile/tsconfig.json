@@ -1,8 +1,19 @@
 {
   "extends": "@hunch/tsconfig/react-native.json",
   "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src"
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "types": ["react-native"],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
-  "include": ["src"]
+  "include": [
+    "app",
+    "src",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
 }

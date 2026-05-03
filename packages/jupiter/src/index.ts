@@ -6,6 +6,7 @@ export type {
   DepositMint,
   PlaceOrderRequest,
   PlaceOrderResponse,
+  EventsQuery,
 } from "./prediction.js";
 export { classifyError } from "./errors.js";
 export type { JupiterError, JupiterResult } from "./errors.js";

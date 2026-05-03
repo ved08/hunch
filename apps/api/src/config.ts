@@ -2,6 +2,7 @@ export type Config = {
   jupiterApiKey: string;
   jupiterApiUrl: string;
   solanaRpcUrl: string;
+  databaseUrl: string;
   port: number;
 };
 
@@ -14,11 +15,16 @@ export function loadConfig(): Config {
   if (!solanaRpcUrl) {
     throw new Error("SOLANA_RPC_URL is required");
   }
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    throw new Error("DATABASE_URL is required");
+  }
 
   return {
     jupiterApiKey,
     jupiterApiUrl: process.env.JUPITER_API_URL ?? "https://api.jup.ag",
     solanaRpcUrl,
+    databaseUrl,
     port: Number(process.env.API_PORT ?? 3000),
   };
 }
