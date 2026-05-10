@@ -14,7 +14,11 @@ export type BuildBetRequest = {
 export type BuildBetResponse = {
   unsignedTx: string;
   orderPubkey: string;
-  [key: string]: unknown;
+  blockhash: string | null;
+  lastValidBlockHeight: number | null;
+  externalOrderId: string | null;
+  requiredSigners: string[];
+  order: Record<string, unknown>;
 };
 
 export type SubmitBetRequest = {
@@ -31,7 +35,9 @@ export type SubmitBetRequest = {
 export type SubmitBetResponse = {
   sig: string;
   broadcastId: string | null;
-  warning?: string;
+  confirmation: "confirmed" | "pending";
+  warning?: "CONFIRM_TIMEOUT" | "PERSIST_FAILED";
+  idempotent?: boolean;
 };
 
 export function buildBet(req: BuildBetRequest): Promise<BuildBetResponse> {
