@@ -20,7 +20,11 @@ export type PlaceOrderRequest = {
 export type PlaceOrderResponse = {
   unsignedTx: string;
   orderPubkey: string;
-  [key: string]: unknown;
+  blockhash: string | null;
+  lastValidBlockHeight: number | null;
+  externalOrderId: string | null;
+  requiredSigners: string[];
+  order: Record<string, unknown>;
 };
 
 type JupiterCreateOrderBody = {
@@ -30,6 +34,14 @@ type JupiterCreateOrderBody = {
   isYes: boolean;
   depositAmount: string;
   depositMint: string;
+};
+
+type JupiterCreateOrderResponse = {
+  transaction: string;
+  txMeta?: { blockhash?: string; lastValidBlockHeight?: number };
+  externalOrderId?: string;
+  requiredSigners?: string[];
+  order: { orderPubkey: string; [k: string]: unknown };
 };
 
 export type EventsQuery = {
@@ -73,7 +85,9 @@ export class PredictionApi {
     );
   }
 
-  placeOrder(req: PlaceOrderRequest): Promise<JupiterResult<PlaceOrderResponse>> {
+  async placeOrder(
+    req: PlaceOrderRequest
+  ): Promise<JupiterResult<PlaceOrderResponse>> {
     const body: JupiterCreateOrderBody = {
       isBuy: true,
       ownerPubkey: req.walletAddress,
@@ -82,10 +96,34 @@ export class PredictionApi {
       depositAmount: req.amountNative,
       depositMint: MINT_ADDRESS[req.depositMint],
     };
-    return this.client.request<PlaceOrderResponse>("/prediction/v1/orders", {
-      method: "POST",
-      body,
-    });
+    const res = await this.client.request<JupiterCreateOrderResponse>(
+      "/prediction/v1/orders",
+      { method: "POST", body }
+    );
+    if (!res.ok) return res;
+    const r = res.result;
+    if (!r?.transaction || !r?.order?.orderPubkey) {
+      return {
+        ok: false,
+        error: {
+          code: "PARSE_ERROR",
+          message: "Jupiter response missing transaction or order.orderPubkey",
+          retryable: false,
+        },
+      };
+    }
+    return {
+      ok: true,
+      result: {
+        unsignedTx: r.transaction,
+        orderPubkey: r.order.orderPubkey,
+        blockhash: r.txMeta?.blockhash ?? null,
+        lastValidBlockHeight: r.txMeta?.lastValidBlockHeight ?? null,
+        externalOrderId: r.externalOrderId ?? null,
+        requiredSigners: r.requiredSigners ?? [],
+        order: r.order,
+      },
+    };
   }
 
   orderStatus(pubkey: string): Promise<JupiterResult<unknown>> {

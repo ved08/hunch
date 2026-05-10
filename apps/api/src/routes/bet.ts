@@ -25,6 +25,7 @@ const SubmitBody = z.object({
   depositMint: z.enum(["USDC", "JUPUSD"]),
   orderPubkey: z.string().min(1),
   walletAddress: z.string().min(32),
+  skipPreflight: z.boolean().optional(),
 });
 
 export function betRoutes(deps: Deps) {
@@ -74,11 +75,88 @@ export function betRoutes(deps: Deps) {
       return c.json({ error: { code: "BAD_REQUEST", issues: parsed.error.issues } }, 400);
     }
 
-    const sent = await deps.rpc.sendTransaction(parsed.data.signedTx);
+    const existing = await broadcastsRepo
+      .findByOrderPubkey(deps.db, parsed.data.orderPubkey)
+      .catch(() => null);
+    if (existing) {
+      return c.json({
+        sig: existing.txSig,
+        broadcastId: existing.id,
+        confirmation: "confirmed",
+        idempotent: true,
+      });
+    }
+
+    const sent = await deps.rpc.sendTransaction(parsed.data.signedTx, {
+      skipPreflight: parsed.data.skipPreflight ?? false,
+    });
     if (!sent.ok) {
-      return c.json({ error: sent.error }, 502);
+      console.error(
+        JSON.stringify({
+          level: "error",
+          event: "send-tx-failed",
+          orderPubkey: parsed.data.orderPubkey,
+          message: sent.error.message,
+          data: sent.error.data,
+        })
+      );
+      return c.json(
+        {
+          error: {
+            code: "SEND_FAILED",
+            message: sent.error.message,
+            data: sent.error.data,
+          },
+        },
+        502
+      );
     }
     const sig = sent.result;
+
+    const conf = await deps.rpc.confirmTransaction(sig, {
+      commitment: "confirmed",
+      timeoutMs: 15_000,
+    });
+
+    if (!conf.ok && conf.reason === "failed") {
+      console.error(
+        JSON.stringify({
+          level: "error",
+          event: "tx-on-chain-failure",
+          orderPubkey: parsed.data.orderPubkey,
+          sig,
+          err: conf.err,
+        })
+      );
+      return c.json(
+        {
+          error: {
+            code: "TX_FAILED",
+            message: "Transaction failed on chain",
+            sig,
+            data: conf.err,
+          },
+        },
+        502
+      );
+    }
+
+    if (!conf.ok && conf.reason === "timeout") {
+      console.warn(
+        JSON.stringify({
+          level: "warn",
+          event: "tx-confirm-timeout",
+          orderPubkey: parsed.data.orderPubkey,
+          sig,
+        })
+      );
+      return c.json({
+        sig,
+        broadcastId: null,
+        confirmation: "pending",
+        warning: "CONFIRM_TIMEOUT",
+      });
+    }
 
     try {
       const [user, market] = await Promise.all([
@@ -97,7 +175,11 @@ export function betRoutes(deps: Deps) {
         txSig: sig,
       });
 
-      return c.json({ sig, broadcastId: broadcast.id });
+      return c.json({
+        sig,
+        broadcastId: broadcast.id,
+        confirmation: "confirmed",
+      });
     } catch (err) {
       console.error(
         JSON.stringify({
@@ -108,7 +190,12 @@ export function betRoutes(deps: Deps) {
           message: (err as Error)?.message ?? String(err),
         })
       );
-      return c.json({ sig, broadcastId: null, warning: "PERSIST_FAILED" });
+      return c.json({
+        sig,
+        broadcastId: null,
+        confirmation: "confirmed",
+        warning: "PERSIST_FAILED",
+      });
     }
   });
 

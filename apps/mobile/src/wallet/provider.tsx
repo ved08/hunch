@@ -141,11 +141,29 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         throw new Error("Wallet adapter unavailable (requires dev client on Android)");
       }
       const bytes = Buffer.from(base64Tx, "base64");
-      let tx: VersionedTransaction | Transaction;
-      try {
-        tx = VersionedTransaction.deserialize(bytes);
-      } catch {
-        tx = Transaction.from(bytes);
+      const isVersioned = (() => {
+        try {
+          VersionedTransaction.deserialize(bytes);
+          return true;
+        } catch {
+          return false;
+        }
+      })();
+
+      const tx: VersionedTransaction | Transaction = isVersioned
+        ? VersionedTransaction.deserialize(bytes)
+        : Transaction.from(bytes);
+
+      // Snapshot pre-filled partial signatures (e.g. Jupiter's session keypair
+      // in slot 1) so we can restore them if the wallet drops them while
+      // adding the user's signature.
+      const preSigs: Array<{ idx: number; signature: Uint8Array }> = [];
+      if (tx instanceof VersionedTransaction) {
+        tx.signatures.forEach((sig, idx) => {
+          if (sig.some((b) => b !== 0)) {
+            preSigs.push({ idx, signature: new Uint8Array(sig) });
+          }
+        });
       }
 
       const signedBytes = await mwa.transact(async (wallet) => {
@@ -183,6 +201,27 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
         const [signed] = await wallet.signTransactions({ transactions: [tx] });
         if (!signed) throw new Error("Signing returned no transaction");
+
+        if (signed instanceof VersionedTransaction) {
+          // Restore any partial sigs the wallet may have zeroed out.
+          for (const { idx, signature } of preSigs) {
+            const current = signed.signatures[idx];
+            if (!current || current.every((b) => b === 0)) {
+              signed.signatures[idx] = signature;
+            }
+          }
+          const required = signed.message.header.numRequiredSignatures;
+          for (let i = 0; i < required; i++) {
+            const s = signed.signatures[i];
+            if (!s || s.every((b) => b === 0)) {
+              const signer =
+                signed.message.staticAccountKeys[i]?.toBase58() ?? `slot ${i}`;
+              throw new Error(
+                `Wallet returned tx with missing signature at slot ${i} (${signer}). Try a different wallet.`
+              );
+            }
+          }
+        }
         return signed.serialize();
       });
 
