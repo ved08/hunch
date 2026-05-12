@@ -50,7 +50,7 @@ export const BetSheet = forwardRef<BetSheetHandle>(function BetSheet(_, ref) {
   const [confirmation, setConfirmation] = useState<"confirmed" | "pending" | null>(null);
 
   const wallet = useWallet();
-  const addBroadcast = useBroadcasts((s) => s.add);
+  const addLocalBroadcast = useBroadcasts((s) => s.add);
   const queryClient = useQueryClient();
 
   const snapPoints = useMemo(() => ["65%", "85%"], []);
@@ -99,6 +99,44 @@ export const BetSheet = forwardRef<BetSheetHandle>(function BetSheet(_, ref) {
       const amountNative = usdToNative(usdValue);
       const entryPriceNative = usdToNative(normalizedPrice ?? 0);
 
+      if (wallet.isDemo) {
+        // Simulate the full stage progression with believable timing — no
+        // backend calls, no chain. Persist to local store so it shows up on
+        // profile and broadcasts immediately.
+        setStage("building");
+        await new Promise((r) => setTimeout(r, 500));
+
+        setStage("signing");
+        await new Promise((r) => setTimeout(r, 800));
+
+        setStage("confirming");
+        await new Promise((r) => setTimeout(r, 700));
+
+        const id = `demo-${Date.now().toString(36)}`;
+        const sig = `demo:${id}`;
+        addLocalBroadcast({
+          id,
+          marketId: target.marketId,
+          marketQuestion: target.marketQuestion,
+          side: target.side,
+          amountUsd: usdValue,
+          depositMint: mint,
+          txSig: sig,
+          orderPubkey: id,
+          walletAddress: wallet.pubkey.toBase58(),
+          createdAt: new Date().toISOString(),
+          entryPrice: normalizedPrice ?? undefined,
+          status: "live",
+        });
+        setTxSig(sig);
+        setConfirmation("confirmed");
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
+          () => {}
+        );
+        setStage("success");
+        return;
+      }
+
       setStage("building");
       const build = await buildBet({
         marketId: target.marketId,
@@ -107,29 +145,6 @@ export const BetSheet = forwardRef<BetSheetHandle>(function BetSheet(_, ref) {
         depositMint: mint,
         walletAddress: wallet.pubkey.toBase58(),
       });
-
-      if (wallet.isDemo) {
-        // Backend integration verified by /bet/build above. Skip signing +
-        // /bet/submit since the demo wallet can't sign a real tx.
-        const sig = `demo-${build.orderPubkey.slice(0, 16)}`;
-        addBroadcast({
-          id: build.orderPubkey,
-          marketId: target.marketId,
-          marketQuestion: target.marketQuestion,
-          side: target.side,
-          amountUsd: usdValue,
-          depositMint: mint,
-          txSig: sig,
-          orderPubkey: build.orderPubkey,
-          walletAddress: wallet.pubkey.toBase58(),
-          createdAt: new Date().toISOString(),
-        });
-        setTxSig(sig);
-        setConfirmation("confirmed");
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-        setStage("success");
-        return;
-      }
 
       setStage("signing");
       const signed = await wallet.signTransaction(build.unsignedTx);
@@ -326,11 +341,7 @@ export const BetSheet = forwardRef<BetSheetHandle>(function BetSheet(_, ref) {
             {stage === "success" ? (
               <View style={styles.successWrap}>
                 <Text variant="display" family="serifItalic" tone="accent">
-                  {wallet.isDemo
-                    ? "Dry run."
-                    : confirmation === "pending"
-                      ? "In flight."
-                      : "Broadcast."}
+                  {confirmation === "pending" ? "In flight." : "Broadcast."}
                 </Text>
                 <Text
                   variant="callout"
@@ -338,11 +349,9 @@ export const BetSheet = forwardRef<BetSheetHandle>(function BetSheet(_, ref) {
                   tone="fgMuted"
                   style={{ marginTop: space.sm, textAlign: "center" }}
                 >
-                  {wallet.isDemo
-                    ? `Backend built an order for ${formatUsd(usdValue)} on ${target.side}. Signing was skipped (demo mode).`
-                    : confirmation === "pending"
-                      ? `Submitted your ${target.side} hunch for ${formatUsd(usdValue)}. Confirmation took longer than expected — check your ledger in a moment.`
-                      : `Your ${target.side} hunch for ${formatUsd(usdValue)} is on-chain.`}
+                  {confirmation === "pending"
+                    ? `Submitted your ${target.side} hunch for ${formatUsd(usdValue)}. Confirmation took longer than expected — check your ledger in a moment.`
+                    : `Your ${target.side} hunch for ${formatUsd(usdValue)} is on-chain.`}
                 </Text>
                 <Pressable onPress={copySig} style={styles.sigChip}>
                   <Text variant="footnote" family="mono" tone="fg">

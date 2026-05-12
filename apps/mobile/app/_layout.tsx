@@ -7,7 +7,7 @@ if (typeof global.Buffer === "undefined") {
 import React, { useEffect } from "react";
 import { ActivityIndicator, AppState, StyleSheet, View } from "react-native";
 import type { AppStateStatus } from "react-native";
-import { Stack } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -30,8 +30,10 @@ import {
   GeistMono_400Regular,
   GeistMono_500Medium,
 } from "@expo-google-fonts/geist-mono";
-import { WalletProvider } from "../src/wallet/provider";
+import { WalletProvider, useWallet } from "../src/wallet/provider";
 import { colors } from "../src/theme/index";
+import { OnboardingProvider, useOnboarding } from "../src/onboarding/state";
+import { useBroadcasts } from "../src/store/broadcasts";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -44,6 +46,39 @@ const queryClient = new QueryClient({
 
 function onAppStateChange(status: AppStateStatus) {
   focusManager.setFocused(status === "active");
+}
+
+function DemoSeeder() {
+  const { isDemo, pubkey } = useWallet();
+  const seedIfEmpty = useBroadcasts((s) => s.seedIfEmpty);
+  useEffect(() => {
+    if (isDemo && pubkey) seedIfEmpty(pubkey.toBase58());
+  }, [isDemo, pubkey, seedIfEmpty]);
+  return null;
+}
+
+function OnboardingGate({ children }: { children: React.ReactNode }) {
+  const { status } = useOnboarding();
+  const router = useRouter();
+  const segments = useSegments();
+
+  useEffect(() => {
+    if (status === "unknown") return;
+    const inOnboarding = segments[0] === "onboarding";
+    if (status === "needed" && !inOnboarding) {
+      router.replace("/onboarding/welcome");
+    }
+  }, [status, segments, router]);
+
+  if (status === "unknown") {
+    return (
+      <View style={styles.splash}>
+        <ActivityIndicator color={colors.fg} />
+      </View>
+    );
+  }
+
+  return <>{children}</>;
 }
 
 export default function RootLayout() {
@@ -75,23 +110,32 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <WalletProvider>
-            <StatusBar style="light" />
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: colors.bg },
-                animation: "fade",
-              }}
-            >
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen
-                name="market/[id]"
-                options={{
-                  presentation: "modal",
-                  animation: "slide_from_bottom",
+            <OnboardingProvider>
+              <StatusBar style="light" />
+              <DemoSeeder />
+              <OnboardingGate>
+                <Stack
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: colors.bg },
+                  animation: "fade",
                 }}
-              />
-            </Stack>
+              >
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen
+                  name="onboarding"
+                  options={{ animation: "fade" }}
+                />
+                <Stack.Screen
+                  name="market/[id]"
+                  options={{
+                    presentation: "modal",
+                    animation: "slide_from_bottom",
+                  }}
+                />
+                </Stack>
+              </OnboardingGate>
+            </OnboardingProvider>
           </WalletProvider>
         </QueryClientProvider>
       </SafeAreaProvider>

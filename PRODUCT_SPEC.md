@@ -584,7 +584,6 @@ Injecting fee instructions into Jupiter's unsigned transactions may break if Jup
 | Polymarket | Largest prediction market, deep liquidity | Zero social layer, desktop-first, no mobile UX |
 | Jupiter Prediction | On-chain, aggregates Polymarket + Kalshi | Trading terminal UI, no social features beyond basic profiles |
 | Kalshi | Regulated (US), real-money predictions | Centralized, no crypto integration, no social |
-| Manifold Markets | Play-money predictions, social features | Not real money (reduced stakes = reduced engagement) |
 | **This app** | Social-first, real money, mobile-native, broadcaster incentives | New entrant, cold start challenge |
 
 ### Our edge

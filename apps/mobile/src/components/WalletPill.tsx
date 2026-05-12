@@ -6,22 +6,15 @@ import { truncatePubkey } from "../utils/format";
 import { useWallet } from "../wallet/provider";
 
 export function WalletPill() {
-  const { pubkey, connect, isConnecting, isDemo } = useWallet();
+  const { pubkey, connect, isConnecting } = useWallet();
 
   return (
     <Pressable
       onPress={connect}
-      disabled={isConnecting || isDemo}
+      disabled={isConnecting}
       style={({ pressed }) => [styles.pill, pressed && { opacity: 0.8 }]}
     >
-      {isDemo ? (
-        <>
-          <View style={[styles.dot, { backgroundColor: colors.fgFaint }]} />
-          <Text variant="caption" family="sansSemibold" tone="fgMuted" style={styles.demoLabel}>
-            DEMO
-          </Text>
-        </>
-      ) : pubkey ? (
+      {pubkey ? (
         <>
           <View style={styles.dot} />
           <Text variant="footnote" family="mono" tone="fg">
@@ -54,8 +47,5 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     backgroundColor: colors.accent,
-  },
-  demoLabel: {
-    letterSpacing: 1.5,
   },
 });

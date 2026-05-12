@@ -38,6 +38,15 @@ export default function ProfileScreen() {
         0
       );
 
+  const wins = isDemo
+    ? localBroadcasts.filter((b) => b.status === "won").length
+    : 0;
+  const losses = isDemo
+    ? localBroadcasts.filter((b) => b.status === "lost").length
+    : 0;
+  const resolved = wins + losses;
+  const accuracy = resolved > 0 ? Math.round((wins / resolved) * 100) : null;
+
   async function copy() {
     if (!pubkey) return;
     await Clipboard.setStringAsync(pubkey.toBase58()).catch(() => {});
@@ -76,17 +85,15 @@ export default function ProfileScreen() {
     >
       <View style={styles.header}>
         <Text variant="footnote" family="sansMedium" tone="fgMuted" style={styles.kicker}>
-          {isDemo ? "DEMO LEDGER · NOT ON-CHAIN" : "YOUR LEDGER"}
+          YOUR LEDGER
         </Text>
-        <Pressable onPress={copy} disabled={isDemo}>
-          <Text variant="title" family="mono" tone={isDemo ? "fgMuted" : "fg"}>
+        <Pressable onPress={copy}>
+          <Text variant="title" family="mono" tone="fg">
             {truncatePubkey(pubkey.toBase58(), 6, 6)}
           </Text>
-          {!isDemo ? (
-            <Text variant="caption" family="sans" tone="fgFaint" style={{ marginTop: 2 }}>
-              tap to copy
-            </Text>
-          ) : null}
+          <Text variant="caption" family="sans" tone="fgFaint" style={{ marginTop: 2 }}>
+            tap to copy
+          </Text>
         </Pressable>
       </View>
 
@@ -108,19 +115,20 @@ export default function ProfileScreen() {
             {formatUsd(totalStaked)}
           </Text>
         </View>
-      </View>
-
-      {!isDemo ? (
-        <View style={{ paddingHorizontal: space.lg, marginTop: space.xxl }}>
-          <Button label="Disconnect" variant="ghost" onPress={disconnect} />
-        </View>
-      ) : (
-        <View style={{ paddingHorizontal: space.lg, marginTop: space.xxl }}>
-          <Text variant="footnote" family="sans" tone="fgFaint" align="center">
-            Wallet connect is disabled via EXPO_PUBLIC_WALLET_ENABLED. Flip it on in .env to sign real transactions.
+        <View style={styles.divider} />
+        <View style={styles.stat}>
+          <Text variant="caption" family="sansMedium" tone="fgMuted" style={styles.statLabel}>
+            ACCURACY
+          </Text>
+          <Text variant="title" family="mono" tone="fg">
+            {accuracy != null ? `${accuracy}%` : "—"}
           </Text>
         </View>
-      )}
+      </View>
+
+      <View style={{ paddingHorizontal: space.lg, marginTop: space.xxl }}>
+        <Button label="Disconnect" variant="ghost" onPress={disconnect} />
+      </View>
     </ScrollView>
   );
 }
