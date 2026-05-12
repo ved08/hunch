@@ -1,0 +1,1198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>hunch.fun — pitch</title>
+<meta name="description" content="A social prediction market built on Solana. Every trade is a post." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:        #07090F;
+    --bg-2:      #0A0F1E;
+    --surface:   #111827;
+    --surface-2: #1A2235;
+    --line:      rgba(255,255,255,0.07);
+    --line-2:    rgba(255,255,255,0.12);
+    --text:      #F5F7FA;
+    --muted:     #8A95A8;
+    --dim:       #5B6478;
+    --yes:       #22C55E;
+    --no:        #EF4444;
+    --accent:    #7CF6B5;        /* electric mint — distinctive, not the generic "web3 blue" */
+    --accent-2:  #FFD66B;        /* warm contrast */
+    --grid:      rgba(255,255,255,0.025);
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+  html,body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;letter-spacing:-0.011em}
+  body{overflow-x:hidden}
+
+  /* ── scroll deck ───────────────────────────────────────────── */
+  .deck{
+    scroll-snap-type: y mandatory;
+    overflow-y: scroll;
+    height: 100vh;
+    scroll-behavior: smooth;
+  }
+  .slide{
+    height: 100vh;
+    min-height: 640px;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    padding: clamp(32px, 4.5vh, 64px) clamp(28px, 6vw, 96px);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+    overflow: hidden;
+  }
+
+  /* subtle grid texture — gives every slide a precise, drafted feel without resorting to gradients */
+  .slide::before{
+    content:'';
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 56px 56px;
+    pointer-events:none;
+    mask-image: radial-gradient(ellipse at 50% 30%, black 30%, transparent 80%);
+    -webkit-mask-image: radial-gradient(ellipse at 50% 30%, black 30%, transparent 80%);
+  }
+
+  /* slide chrome — top meta row & slide number */
+  .meta{
+    display:flex; align-items:center; justify-content:space-between;
+    font-family:'JetBrains Mono',monospace;
+    font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--dim);
+    position: relative; z-index: 2;
+  }
+  .meta .brand{display:flex; align-items:center; gap:10px}
+  .meta .brand .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 24px var(--accent)}
+  .meta .num{color:var(--muted)}
+  .meta .num b{color:var(--text);font-weight:600}
+
+  .slide-body{
+    flex:1; display:flex; flex-direction:column; justify-content:center;
+    position:relative; z-index:2;
+    padding: clamp(16px, 3vh, 36px) 0;
+    min-height: 0;
+  }
+
+  .kicker{
+    font-family:'JetBrains Mono',monospace;
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.18em;
+    color: var(--accent); margin-bottom: 20px;
+    display:inline-flex; align-items:center; gap:12px;
+  }
+  .kicker::before{
+    content:''; width:24px; height:1px; background: var(--accent);
+  }
+
+  h1, h2, h3{font-weight:800; line-height: 0.95; letter-spacing: -0.035em}
+  h1{font-size: clamp(56px, 9vw, 144px)}
+  h2{font-size: clamp(34px, 4.6vw, 68px); line-height: 1.02}
+  h3{font-size: clamp(24px, 2.4vw, 32px); letter-spacing: -0.02em}
+
+  .serif{font-family:'Instrument Serif',serif; font-weight:400; font-style:italic; letter-spacing:-0.01em}
+
+  p{color: var(--muted); line-height: 1.55; font-size: clamp(15px, 1.1vw, 17px); max-width: 60ch}
+  .lead{color: var(--text); font-size: clamp(18px, 1.4vw, 22px); line-height: 1.45; max-width: 64ch}
+
+  .mono{font-family:'JetBrains Mono',monospace}
+  .accent{color:var(--accent)}
+  .yes{color:var(--yes)}
+  .no{color:var(--no)}
+  .muted{color:var(--muted)}
+  .dim{color:var(--dim)}
+
+  /* ── nav indicator (fixed) ────────────────────────────────── */
+  .indicator{
+    position: fixed; right: clamp(20px, 3vw, 36px); top: 50%; transform: translateY(-50%);
+    display:flex; flex-direction:column; gap:14px;
+    z-index: 50;
+  }
+  .indicator a{
+    width: 22px; height: 2px; background: rgba(255,255,255,0.15);
+    transition: all .3s ease; cursor: pointer; display:block;
+  }
+  .indicator a.active{background: var(--accent); width: 32px}
+  .indicator a:hover{background: var(--text)}
+
+  /* ── intro hint ───────────────────────────────────────────── */
+  .scroll-hint{
+    position:absolute; bottom: 32px; left: 50%; transform: translateX(-50%);
+    font-family:'JetBrains Mono',monospace; font-size: 10px; letter-spacing: 0.2em;
+    color: var(--dim); text-transform: uppercase;
+    display:flex; align-items:center; gap:10px;
+    z-index: 2;
+  }
+  .scroll-hint .line{width:1px;height:32px;background:linear-gradient(to bottom, var(--dim), transparent); animation:drop 1.8s ease-in-out infinite}
+  @keyframes drop{0%{transform:scaleY(0); transform-origin:top}50%{transform:scaleY(1); transform-origin:top}51%{transform:scaleY(1); transform-origin:bottom}100%{transform:scaleY(0); transform-origin:bottom}}
+
+  /* ═══════════════════════════════════════════════════════════ */
+  /* SLIDE 1 — COVER                                              */
+  /* ═══════════════════════════════════════════════════════════ */
+  .slide-cover .slide-body{
+    display:grid; grid-template-columns: 1.4fr 1fr; gap: clamp(40px, 6vw, 96px);
+    align-items:center;
+  }
+  .wordmark{
+    font-size: clamp(80px, 13vw, 200px);
+    font-weight:900; letter-spacing:-0.06em; line-height: 0.85;
+    color: var(--text);
+  }
+  .wordmark .dot-fun{color: var(--accent)}
+  .tagline{
+    margin-top: 24px;
+    font-size: clamp(24px, 2.6vw, 38px); line-height: 1.15; font-weight: 500;
+    letter-spacing: -0.025em; color: var(--text); max-width: 18ch;
+  }
+  .tagline em{font-family:'Instrument Serif',serif; font-weight:400; font-style:italic; color:var(--accent); letter-spacing:-0.01em}
+  .cover-meta{margin-top: 40px; display:flex; gap:32px; flex-wrap:wrap; color:var(--muted); font-family:'JetBrains Mono',monospace; font-size: 12px; letter-spacing: 0.12em; text-transform:uppercase}
+  .cover-meta b{color:var(--text); font-weight:500; display:block; margin-top:6px; text-transform:none; letter-spacing:-0.005em; font-family:'Inter',sans-serif; font-size: 15px}
+
+  /* the floating broadcast preview on the cover */
+  .cover-card-wrap{position:relative; height: min(560px, 70vh)}
+  .float-card{
+    position:absolute; border:1px solid var(--line-2); background: var(--surface);
+    border-radius: 18px; padding: 22px; width: 320px;
+    box-shadow: 0 40px 80px -20px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.02) inset;
+    transform-origin: center;
+  }
+  .float-card.c1{top:0%; right:0; transform: rotate(3.5deg)}
+  .float-card.c2{bottom:8%; right:18%; transform: rotate(-5deg); width: 300px}
+  .float-card.c3{top:38%; right:38%; transform: rotate(1deg); width: 280px}
+
+  .card-hd{display:flex; align-items:center; gap:10px; margin-bottom: 14px}
+  .av{width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg, #4ADE80, #06B6D4); position:relative; flex-shrink:0}
+  .av::after{content:''; position:absolute; inset:-3px; border:1.5px solid var(--accent); border-radius:50%; opacity:.6}
+  .av.v2{background:linear-gradient(135deg, #F472B6, #F59E0B)}
+  .av.v3{background:linear-gradient(135deg, #818CF8, #EC4899)}
+  .card-hd .uname{font-size: 13px; font-weight: 600; color: var(--text)}
+  .card-hd .stamp{font-size: 11px; color: var(--dim); margin-left:auto; font-family:'JetBrains Mono',monospace}
+  .card-hd .score{font-size: 11px; color: var(--accent-2); font-family:'JetBrains Mono',monospace}
+
+  .card-q{font-size: 15px; font-weight: 600; line-height: 1.3; color: var(--text); margin-bottom: 14px}
+  .card-pos{display:flex; gap:8px; align-items:center; margin-bottom: 14px; font-size: 12px; font-family:'JetBrains Mono',monospace}
+  .pos-pill{padding:4px 10px; border-radius:6px; font-weight:600; letter-spacing:0.04em}
+  .pos-pill.yes{background:rgba(34,197,94,0.12); color:var(--yes)}
+  .pos-pill.no{background:rgba(239,68,68,0.12); color:var(--no)}
+  .pos-meta{color:var(--muted); font-size: 12px}
+  .card-actions{display:flex; gap:8px}
+  .card-actions button{flex:1; padding: 10px 12px; border-radius: 10px; border:none; cursor:pointer; font-weight:600; font-size: 12px; font-family:inherit; letter-spacing:-0.005em}
+  .btn-copy{background:var(--accent); color:#06170E}
+  .btn-bet{background:transparent; color:var(--text); border: 1px solid var(--line-2) !important}
+
+  /* ═══════════════════════════════════════════════════════════ */
+  /* SLIDE 2 — PROBLEM                                            */
+  /* ═══════════════════════════════════════════════════════════ */
+  .problem-grid{display:grid; grid-template-columns: 1fr 1fr; gap: clamp(20px, 3vw, 40px); align-items: stretch; margin-top: clamp(20px, 3vh, 32px)}
+  .problem-col{
+    border: 1px solid var(--line); background: var(--surface);
+    border-radius: 18px; padding: 22px 24px; display:flex; flex-direction:column;
+    position: relative;
+  }
+  .problem-col .label{font-family:'JetBrains Mono',monospace; font-size: 10px; letter-spacing: 0.18em; text-transform:uppercase; color: var(--dim); margin-bottom: 8px}
+  .problem-col .title{font-size: 19px; font-weight: 700; margin-bottom: 14px; letter-spacing: -0.02em}
+
+  /* fake polymarket table */
+  .pm-row{display:grid; grid-template-columns: 1fr 56px 56px; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); font-family:'JetBrains Mono',monospace; font-size: 12px}
+  .pm-row.head{color: var(--dim); font-size: 10px; letter-spacing: 0.14em; text-transform:uppercase; padding-bottom:6px; padding-top:0}
+  .pm-row .q{color: var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .pm-row .y{color: var(--yes); text-align:right}
+  .pm-row .n{color: var(--no); text-align:right}
+
+  /* fake tweet card */
+  .tweet{display:flex; gap:12px; align-items:flex-start; padding: 6px 0}
+  .tweet .av{width:40px; height:40px}
+  .tweet .av::after{display:none}
+  .tweet-body{flex:1}
+  .tweet-name{font-size: 14px; font-weight:600}
+  .tweet-name span{color: var(--dim); font-weight:400; margin-left: 6px; font-size: 13px}
+  .tweet-text{font-size: 15px; color: var(--text); line-height:1.4; margin-top: 4px}
+  .tweet-stats{display:flex; gap:24px; margin-top: 14px; color: var(--dim); font-size: 12px; font-family:'JetBrains Mono',monospace}
+  .tweet-stats span b{color:var(--muted); font-weight:500; margin-right:4px}
+
+  .insight-row{margin-top: clamp(20px, 3vh, 32px); display:grid; grid-template-columns: repeat(3, 1fr); gap: 36px; align-items: baseline}
+  .insight-row .big{font-size: clamp(36px, 4.4vw, 56px); font-weight: 800; letter-spacing:-0.035em; line-height:1; margin-bottom: 6px}
+  .insight-row .lbl{color: var(--muted); font-size: 13px; max-width: 28ch; line-height:1.4}
+
+  /* ═══════════════════════════════════════════════════════════ */
+  /* SLIDE 3 — SOLUTION                                           */
+  /* ═══════════════════════════════════════════════════════════ */
+  .solution-grid{display:grid; grid-template-columns: 1fr 0.85fr; gap: clamp(32px, 4vw, 72px); align-items: center; flex:1; min-height: 0}
+  .solution-card{
+    border: 1px solid var(--line-2); background: var(--surface);
+    border-radius: 22px; padding: 28px; max-width: 420px; margin-left: auto;
+    box-shadow: 0 60px 120px -30px rgba(124, 246, 181, 0.06), 0 0 0 1px rgba(255,255,255,0.02) inset;
+  }
+  .sc-hd{display:flex; align-items:center; gap:12px; margin-bottom: 18px}
+  .sc-hd .av{width:40px; height:40px}
+  .sc-hd .name{font-size:14px; font-weight:600}
+  .sc-hd .meta-row{font-size:11px; color:var(--dim); margin-top:2px; font-family:'JetBrains Mono',monospace; display:flex; gap:8px}
+  .sc-hd .meta-row .score{color:var(--accent-2)}
+  .sc-q{font-size: 22px; font-weight: 700; line-height: 1.25; letter-spacing:-0.018em; margin-bottom: 20px; color: var(--text)}
+  .sc-stats{display:grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 16px; background: rgba(255,255,255,0.02); border-radius: 12px; margin-bottom: 18px}
+  .sc-stat-label{font-size: 11px; color: var(--dim); font-family:'JetBrains Mono',monospace; text-transform:uppercase; letter-spacing: 0.1em; margin-bottom: 4px}
+  .sc-stat-val{font-size: 15px; font-weight: 600; font-family:'JetBrains Mono',monospace}
+  .sc-stat-val.green{color: var(--yes)}
+  .sc-actions{display:flex; gap:10px; margin-bottom: 16px}
+  .sc-actions button{flex:1; padding: 14px; border-radius: 12px; border: 0; font-weight: 700; font-size: 13px; cursor:pointer; font-family:inherit}
+  .sc-actions .bcopy{background: var(--accent); color:#06170E}
+  .sc-actions .bbet{background: transparent; color: var(--text); border:1px solid var(--line-2) !important}
+  .sc-social{display:flex; gap:24px; color: var(--dim); font-size: 12px; font-family:'JetBrains Mono',monospace; padding-top: 12px; border-top: 1px solid var(--line)}
+
+  .solution-text h2{margin-bottom: 20px}
+  .solution-text .lead{margin-bottom: 24px}
+  .feature-list{display:flex; flex-direction:column; max-width: 48ch}
+  .feature-list li{display:flex; gap: 14px; list-style:none; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--line)}
+  .feature-list li:first-child{padding-top: 0}
+  .feature-list li:last-child{border-bottom:none}
+  .feature-list .ix{font-family:'JetBrains Mono',monospace; font-size: 11px; color: var(--accent); flex-shrink: 0; padding-top: 4px; min-width: 28px}
+  .feature-list .ft{color: var(--text); font-size: 14px; line-height: 1.5; letter-spacing: -0.005em}
+  .feature-list .ft b{font-weight: 600}
+
+  /* ═══════════════════════════════════════════════════════════ */
+  /* SLIDE 4 — THE LOOP                                           */
+  /* ═══════════════════════════════════════════════════════════ */
+  .loop-container{flex:1; display:flex; flex-direction:column; justify-content:center}
+  .loop-stages{display:grid; grid-template-columns: repeat(5, 1fr); gap: 0; margin-top: clamp(28px, 4vh, 56px); margin-bottom: clamp(24px, 3vh, 40px); position: relative}
+  .loop-stage{padding: 0 14px; position: relative}
+  .loop-stage:not(:last-child)::after{
+    content:''; position:absolute; right:-10px; top: 20px;
+    width: 20px; height: 1px; background: var(--line-2);
+  }
+  .loop-stage:not(:last-child)::before{
+    content:''; position:absolute; right:-10px; top:16px;
+    border-left: 6px solid var(--accent); border-top: 4px solid transparent; border-bottom: 4px solid transparent;
+  }
+  .stage-num{font-family:'JetBrains Mono',monospace; font-size: 11px; color: var(--accent); margin-bottom: 10px; letter-spacing: 0.1em}
+  .stage-name{font-size: clamp(20px, 1.9vw, 26px); font-weight: 800; letter-spacing: -0.028em; line-height:1; margin-bottom: 10px}
+  .stage-desc{font-size: 12px; color: var(--muted); line-height: 1.5}
+
+  .loop-flywheel{
+    margin-top: clamp(32px, 4vh, 56px);
+    padding: 22px 28px;
+    border: 1px solid var(--line-2);
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(124,246,181,0.04), transparent);
+    display:flex; justify-content: space-between; align-items: center; gap: 28px; flex-wrap: wrap;
+  }
+  .flywheel-text{flex:1; min-width: 320px}
+  .flywheel-text .h{font-size: 20px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px}
+  .flywheel-text .p{font-size: 14px; color: var(--muted); line-height: 1.5}
+  .flywheel-eq{font-family:'JetBrains Mono', monospace; font-size: 14px; color: var(--text); white-space: nowrap}
+  .flywheel-eq .op{color: var(--accent); margin: 0 8px}
+  .flywheel-eq .res{color: var(--accent-2); margin-left: 4px}
+
+  /* ═══════════════════════════════════════════════════════════ */
+  /* SLIDE 5 — WHY NOW                                            */
+  /* ═══════════════════════════════════════════════════════════ */
+  .why-pillars{display:grid; grid-template-columns: repeat(3, 1fr); gap: clamp(16px, 2vw, 28px); margin-top: clamp(28px, 4vh, 48px); flex:1; align-items: stretch; min-height: 0}
+  .pillar{
+    border:1px solid var(--line); background: var(--surface);
+    border-radius: 18px; padding: 26px;
+    display:flex; flex-direction:column; gap: 16px;
+    position: relative; overflow:hidden;
+    transition: border-color .3s;
+  }
+  .pillar:hover{border-color: var(--line-2)}
+  .pillar .num{font-family:'JetBrains Mono',monospace; font-size: 13px; color: var(--accent); letter-spacing: 0.1em}
+  .pillar .title{font-size: clamp(22px, 2vw, 28px); font-weight: 800; line-height: 1.05; letter-spacing: -0.025em; max-width: 12ch}
+  .pillar .body{font-size: 14px; color: var(--muted); line-height: 1.55; flex:1}
+  .pillar .stat{
+    margin-top: auto; padding-top: 20px; border-top: 1px solid var(--line);
+    display:flex; flex-direction: column; gap: 4px;
+  }
+  .pillar .stat .big{font-family:'JetBrains Mono',monospace; font-size: 22px; font-weight: 600; color: var(--text); letter-spacing: -0.02em}
+  .pillar .stat .lbl{font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.14em; font-family:'JetBrains Mono',monospace}
+  .pillar .badge{
+    position: absolute; top: 24px; right: 24px;
+    font-size: 10px; color: var(--accent); padding: 4px 8px;
+    border: 1px solid var(--accent); border-radius: 99px;
+    font-family:'JetBrains Mono',monospace; letter-spacing: 0.1em; text-transform: uppercase;
+    opacity: 0.7;
+  }
+  .why-bottom{margin-top: clamp(20px, 2.5vh, 32px); display:flex; align-items: center; gap: 16px; color: var(--muted); font-size: 14px}
+  .why-bottom .punch{font-family:'Instrument Serif',serif; font-style: italic; font-size: clamp(22px, 2vw, 28px); color: var(--text); letter-spacing: -0.005em}
+
+  /* ═══════════════════════════════════════════════════════════ */
+  /* SLIDE 6 — BUSINESS MODEL                                     */
+  /* ═══════════════════════════════════════════════════════════ */
+  .biz-grid{display:grid; grid-template-columns: 1fr 1fr; gap: clamp(28px, 4vw, 56px); flex:1; margin-top: clamp(20px, 2.5vh, 32px); align-items: center; min-height: 0}
+  .biz-text h2{margin-bottom: 20px}
+  .biz-stream{display:flex; gap: 18px; padding: 14px 0; border-bottom: 1px solid var(--line); align-items: baseline}
+  .biz-stream:first-child{padding-top: 0}
+  .biz-stream:last-child{border-bottom: none}
+  .biz-stream .pct{font-family:'JetBrains Mono',monospace; font-size: 20px; font-weight: 600; color: var(--accent); min-width: 84px; letter-spacing:-0.01em}
+  .biz-stream .lbl{font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 3px; letter-spacing:-0.005em}
+  .biz-stream .dsc{font-size: 12px; color: var(--muted); line-height: 1.45}
+
+  /* trade breakdown viz */
+  .trade-viz{
+    border: 1px solid var(--line-2); border-radius: 20px;
+    padding: 24px; background: var(--surface);
+    box-shadow: 0 40px 80px -30px rgba(0,0,0,0.5);
+  }
+  .trade-viz .hd{font-family:'JetBrains Mono',monospace; font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.16em; margin-bottom: 18px; display:flex; justify-content: space-between}
+  .trade-viz .hd .live{display:flex; align-items:center; gap:6px}
+  .trade-viz .hd .live .pulse{width:6px; height:6px; border-radius:50%; background:var(--yes); box-shadow: 0 0 12px var(--yes); animation: pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+  .trade-input{font-family:'JetBrains Mono',monospace; font-size: clamp(36px, 4vw, 52px); font-weight: 700; letter-spacing: -0.04em; line-height:1; margin-bottom: 6px}
+  .trade-input .ccy{color: var(--dim); font-size: 0.5em; margin-right: 6px; vertical-align: top; font-weight: 500}
+  .trade-input-lbl{font-size: 11px; color: var(--muted); font-family:'JetBrains Mono',monospace; letter-spacing:0.12em; text-transform:uppercase; margin-bottom: 20px}
+  .trade-bar{display:flex; height: 7px; border-radius: 99px; overflow:hidden; background: rgba(255,255,255,0.04); margin-bottom: 18px}
+  .trade-bar div{height: 100%}
+  .tb-trade{background: var(--accent); flex: 97}
+  .tb-platform{background: var(--accent-2); flex: 2}
+  .tb-broadcaster{background: #F472B6; flex: 1}
+  .breakdown{display:flex; flex-direction: column; gap: 12px}
+  .br-row{display:grid; grid-template-columns: 12px 1fr auto; gap: 12px; align-items: center; font-family:'JetBrains Mono',monospace; font-size: 13px}
+  .br-row .swatch{width: 10px; height: 10px; border-radius: 3px}
+  .br-row .name{color: var(--text)}
+  .br-row .v{color: var(--text); font-weight:600}
+  .br-row .pct-tag{color: var(--dim); font-size: 11px; margin-left: 8px}
+
+  .at-scale{margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); display:flex; justify-content: space-between; gap: 12px}
+  .at-scale .l{font-size: 11px; color: var(--dim); text-transform:uppercase; letter-spacing: 0.14em; font-family:'JetBrains Mono',monospace; margin-bottom: 4px}
+  .at-scale .v{font-family:'JetBrains Mono',monospace; font-size: 20px; font-weight: 600; color: var(--accent)}
+
+  /* ═══════════════════════════════════════════════════════════ */
+  /* SLIDE 7 — COMPETITION                                        */
+  /* ═══════════════════════════════════════════════════════════ */
+  .comp-grid{display:grid; grid-template-columns: 1fr 1fr; gap: clamp(28px, 4vw, 64px); flex:1; align-items: center; margin-top: clamp(20px, 2.5vh, 32px); min-height: 0}
+  .comp-text h2{margin-bottom: 20px}
+  .comp-text .lead{margin-bottom: 20px}
+  .comp-list{display:flex; flex-direction: column}
+  .comp-row{
+    display: grid;
+    grid-template-columns: 1fr repeat(4, 56px);
+    align-items: center;
+    column-gap: 8px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .comp-row:last-child{border-bottom: none}
+  .comp-row.head{padding: 0 0 10px; border-bottom: 1px solid var(--line-2)}
+  .comp-row.head .col-lbl{
+    font-family:'JetBrains Mono',monospace;
+    font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--dim); text-align: center;
+  }
+  .comp-row.head .nm{
+    font-family:'JetBrains Mono',monospace; font-size: 10px;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim);
+    font-weight: 500;
+  }
+  .comp-row .nm{font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: -0.005em}
+  .comp-row .chk{
+    width: 24px; height: 24px; border-radius: 6px;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'JetBrains Mono',monospace; font-size: 13px; font-weight: 600;
+    justify-self: center;
+  }
+  .comp-row .chk.yes{background: rgba(124,246,181,0.12); color: var(--accent)}
+  .comp-row .chk.no{background: rgba(255,255,255,0.03); color: var(--dim); border: 1px solid var(--line)}
+  .comp-row.hunch{
+    background: linear-gradient(90deg, rgba(124,246,181,0.06), transparent);
+    margin: 4px -12px 0; padding: 14px 12px; border-radius: 12px;
+    border-bottom: none; position: relative;
+  }
+  .comp-row.hunch::before{
+    content:'You are here'; position:absolute; right: 12px; top: -9px;
+    font-size: 10px; font-family:'JetBrains Mono',monospace; color: var(--accent);
+    background: var(--bg); padding: 0 8px; text-transform: uppercase; letter-spacing: 0.14em;
+  }
+  .comp-row.hunch .nm{color: var(--accent)}
+
+  /* the 2x2 matrix */
+  .matrix-wrap{position: relative; aspect-ratio: 1.05; max-width: 460px; max-height: 60vh; margin-left: auto; margin-right: 0; width: 100%}
+  .matrix{
+    position: absolute; inset: 40px 40px 40px 40px;
+    border: 1px solid var(--line-2);
+    border-radius: 12px;
+    background:
+      linear-gradient(to right, transparent 49.5%, var(--line) 49.5%, var(--line) 50.5%, transparent 50.5%),
+      linear-gradient(to bottom, transparent 49.5%, var(--line) 49.5%, var(--line) 50.5%, transparent 50.5%);
+  }
+  .matrix-quad{
+    position: absolute; bottom: 12px; right: 12px; left: calc(50% + 8px); top: calc(50% + 8px);
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(124,246,181,0.16), rgba(124,246,181,0.02));
+    border: 1px solid rgba(124,246,181,0.3);
+  }
+  .axis{position: absolute; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.14em; white-space: nowrap}
+  .axis.top{top: 12px; left: 50%; transform: translateX(-50%)}
+  .axis.bot{bottom: 12px; left: 50%; transform: translateX(-50%)}
+  .axis.left{left: 4px; top: 50%; transform: translateY(-50%) rotate(-90deg); transform-origin: left center}
+  .axis.right{right: 4px; top: 50%; transform: translateY(-50%) rotate(90deg); transform-origin: right center}
+  .axis.lbl{color: var(--muted)}
+
+  .plot{position: absolute; display:flex; flex-direction:column; align-items:center; gap: 6px; transform: translate(-50%, -50%)}
+  .plot .pt{width: 10px; height: 10px; border-radius: 50%; background: var(--muted); box-shadow: 0 0 0 4px rgba(255,255,255,0.04)}
+  .plot .nm{font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; letter-spacing: 0.02em; white-space:nowrap}
+  .plot.hunch .pt{background: var(--accent); box-shadow: 0 0 0 6px rgba(124,246,181,0.18), 0 0 24px var(--accent); width: 14px; height: 14px}
+  .plot.hunch .nm{color: var(--accent); font-weight: 600}
+
+  /* ═══════════════════════════════════════════════════════════ */
+  /* SLIDE 8 — ROADMAP & ASK                                      */
+  /* ═══════════════════════════════════════════════════════════ */
+  /* ── slide 8 — traction ──────────────────────────────────── */
+  .slide-traction .slide-body{
+    gap: clamp(18px, 2.5vh, 32px);
+  }
+
+  .live-badge{
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 7px 14px;
+    background: rgba(34,197,94,0.10);
+    color: var(--yes);
+    border-radius: 99px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    width: max-content;
+    border: 1px solid rgba(34,197,94,0.22);
+  }
+  .live-badge .pulse{
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--yes); box-shadow: 0 0 14px var(--yes);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+
+  .traction-stats{
+    display: grid;
+    grid-template-columns: 1fr 1.3fr 1fr;
+    margin-top: clamp(6px, 1vh, 12px);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: clamp(20px, 3vh, 36px) 0;
+  }
+  .t-stat{
+    display: flex; flex-direction: column; gap: 14px;
+    padding: 0 clamp(20px, 3vw, 44px);
+    border-right: 1px solid var(--line);
+    position: relative;
+  }
+  .t-stat:first-child{padding-left: 0}
+  .t-stat:last-child{border-right: none; padding-right: 0}
+  .t-stat .t-big{
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(48px, 6.4vw, 92px);
+    font-weight: 700;
+    letter-spacing: -0.045em;
+    line-height: 0.9;
+    color: var(--text);
+  }
+  .t-stat .t-big .den{color: var(--dim); font-weight: 400}
+  .t-stat.hero .t-big{color: var(--accent)}
+  .t-stat.hero::before{
+    content:''; position: absolute; inset: -8px clamp(8px, 1.5vw, 24px); top: -12px; bottom: -12px;
+    border-radius: 12px;
+    background: radial-gradient(ellipse at center, rgba(124,246,181,0.05), transparent 70%);
+    pointer-events: none;
+  }
+  .t-stat .t-lbl{
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    line-height: 1.55;
+  }
+  .t-stat .t-lbl b{color: var(--accent); font-weight: 600}
+
+  .traction-quote{
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: clamp(22px, 2.4vw, 34px);
+    color: var(--text);
+    line-height: 1.25;
+    max-width: 32ch;
+    letter-spacing: -0.01em;
+  }
+  .traction-quote .accent{color: var(--accent)}
+
+  .traction-foot{
+    position: relative; z-index: 2;
+    padding-top: clamp(18px, 2vh, 28px);
+    border-top: 1px solid var(--line);
+    display: flex; justify-content: space-between; align-items: flex-end;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--dim);
+    letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  .traction-foot .name{
+    color: var(--text); font-family: 'Inter', sans-serif;
+    text-transform: none; letter-spacing: -0.005em;
+    font-size: 14px; font-weight: 500;
+    margin-bottom: 3px;
+  }
+  .traction-foot .brand-end{color: var(--accent)}
+
+  .ask-grid{display:grid; grid-template-columns: 1.05fr 1fr; gap: clamp(32px, 4vw, 64px); flex:1; align-items: stretch; margin-top: clamp(20px, 2.5vh, 32px); min-height: 0}
+  .timeline{display:flex; flex-direction: column; padding-right: 24px; border-right: 1px solid var(--line); justify-content: space-between}
+  .tl-stage{display:flex; gap: 18px; padding: 12px 0; border-bottom: 1px solid var(--line); position: relative}
+  .tl-stage:last-child{border-bottom: none}
+  .tl-stage:first-child{padding-top: 0}
+  .tl-stage .when{font-family:'JetBrains Mono',monospace; font-size: 10px; color: var(--accent); letter-spacing: 0.14em; text-transform: uppercase; min-width: 56px; padding-top: 4px}
+  .tl-stage .what{flex:1}
+  .tl-stage .what .h{font-size: 16px; font-weight: 700; letter-spacing: -0.018em; margin-bottom: 4px}
+  .tl-stage .what .p{font-size: 12px; color: var(--muted); line-height: 1.5}
+  .tl-stage .what .targets{display:flex; gap: 18px; margin-top: 10px; flex-wrap: wrap}
+  .tl-stage .what .tgt{font-family:'JetBrains Mono',monospace; font-size: 11px}
+  .tl-stage .what .tgt b{color: var(--text); font-weight: 600; display: block; font-size: 14px; letter-spacing:-0.01em}
+  .tl-stage .what .tgt span{color: var(--dim); font-size: 9px; text-transform:uppercase; letter-spacing: 0.12em}
+
+  .ask-card{
+    border: 1px solid var(--line-2); border-radius: 20px; padding: clamp(20px, 2vw, 28px);
+    background: var(--surface);
+    display:flex; flex-direction:column; gap: 16px;
+    position: relative; overflow: hidden;
+    min-height: 0;
+  }
+  .ask-card .badge{display: inline-flex; font-family:'JetBrains Mono',monospace; font-size: 10px; padding: 5px 10px; border-radius: 99px; background: rgba(124,246,181,0.1); color: var(--accent); letter-spacing: 0.16em; text-transform: uppercase; width: max-content}
+  .ask-card .ask-h{font-size: clamp(24px, 2.6vw, 36px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; max-width: 16ch}
+  .ask-card .ask-h em{font-family:'Instrument Serif',serif; font-weight:400; font-style: italic; color: var(--accent); letter-spacing: -0.01em}
+  .ask-card .lead{color: var(--muted); font-size: 13px; line-height: 1.5}
+
+  .use-of-funds{display:flex; flex-direction: column; padding-top: 12px; border-top: 1px solid var(--line)}
+  .uof-row{display:grid; grid-template-columns: 44px 1fr 60px; gap: 14px; align-items: center; padding: 6px 0}
+  .uof-row .pct{font-family:'JetBrains Mono',monospace; font-size: 14px; font-weight: 600; color: var(--accent)}
+  .uof-row .lbl{font-size: 12px; color: var(--text); letter-spacing:-0.003em}
+  .uof-row .bar{height: 3px; background: rgba(255,255,255,0.06); border-radius: 99px; overflow: hidden}
+  .uof-row .bar > div{height: 100%; background: var(--accent); border-radius: 99px}
+
+  .signoff{margin-top: auto; padding-top: 14px; border-top: 1px solid var(--line); display:flex; justify-content: space-between; align-items: flex-end; font-family:'JetBrains Mono',monospace; font-size: 10px; color: var(--dim); letter-spacing: 0.14em; text-transform: uppercase}
+  .signoff .name{color: var(--text); font-family:'Inter',sans-serif; text-transform: none; letter-spacing:-0.005em; font-size: 13px; font-weight: 500}
+
+  /* ── responsive ──────────────────────────────────────────── */
+  @media (max-width: 1024px){
+    .slide{padding: 48px 32px}
+    .slide-cover .slide-body{grid-template-columns: 1fr; gap: 24px}
+    .cover-card-wrap{height: 360px; margin-top: 24px}
+    .problem-grid, .solution-grid, .biz-grid, .comp-grid, .ask-grid{grid-template-columns: 1fr}
+    .traction-stats{grid-template-columns: 1fr; gap: 24px}
+    .t-stat{border-right: none; border-bottom: 1px solid var(--line); padding: 16px 0 !important}
+    .t-stat:last-child{border-bottom: none}
+    .why-pillars{grid-template-columns: 1fr}
+    .loop-stages{grid-template-columns: 1fr; gap: 16px}
+    .loop-stage:not(:last-child)::after, .loop-stage:not(:last-child)::before{display:none}
+    .matrix-wrap{margin: 0 auto}
+    .indicator{display: none}
+  }
+  @media (max-width: 640px){
+    .slide{padding: 36px 20px}
+    .wordmark{font-size: 80px}
+    .tagline{font-size: 22px}
+    .float-card{width: 240px !important; padding: 16px}
+    .float-card.c2, .float-card.c3{display: none}
+    .pillar{padding: 24px}
+  }
+</style>
+</head>
+<body>
+
+<div class="indicator" id="indicator"></div>
+
+<main class="deck" id="deck">
+
+<!-- ────────────────────────────────────────────────────────── -->
+<!-- SLIDE 1 — COVER                                             -->
+<!-- ────────────────────────────────────────────────────────── -->
+<section class="slide slide-cover" id="s1">
+  <div class="meta">
+    <div class="brand"><span class="dot"></span>HUNCH.FUN</div>
+    <div class="num">01<span class="dim"> / </span><b>08</b></div>
+  </div>
+
+  <div class="slide-body">
+    <div>
+      <div class="wordmark">hunch<span class="dot-fun">.fun</span></div>
+      <div class="tagline">Every prediction is a <em>post.</em></div>
+
+      <div class="cover-meta">
+        <div>FOUNDER<b>ved</b></div>
+      </div>
+    </div>
+
+    <div class="cover-card-wrap">
+      <!-- floating product mocks -->
+      <div class="float-card c2">
+        <div class="card-hd">
+          <div class="av v2"></div>
+          <div>
+            <div class="uname">@manish</div>
+            <div class="stamp">2h · 41 🔥</div>
+          </div>
+        </div>
+        <div class="card-q">"Will the Lakers make the playoffs this year?"</div>
+        <div class="card-pos">
+          <span class="pos-pill no">NO · $0.62</span>
+          <span class="pos-meta">$200 bet</span>
+        </div>
+        <div class="card-actions">
+          <button class="btn-copy">Copy</button>
+          <button class="btn-bet">Bet ›</button>
+        </div>
+      </div>
+
+      <div class="float-card c1">
+        <div class="card-hd">
+          <div class="av"></div>
+          <div>
+            <div class="uname">@ved</div>
+            <div class="stamp">just now</div>
+          </div>
+          <div class="score" style="margin-left:auto">87 🔥</div>
+        </div>
+        <div class="card-q">"BTC above $150k by July?"</div>
+        <div class="card-pos">
+          <span class="pos-pill yes">YES · $0.35</span>
+          <span class="pos-meta">$50 · 8/10 ✓</span>
+        </div>
+        <div class="card-actions">
+          <button class="btn-copy">Copy Trade</button>
+          <button class="btn-bet">Bet ›</button>
+        </div>
+      </div>
+
+      <div class="float-card c3">
+        <div class="card-hd">
+          <div class="av v3"></div>
+          <div>
+            <div class="uname">@dextro</div>
+            <div class="stamp">6h</div>
+          </div>
+        </div>
+        <div class="card-q">"OpenAI IPOs before 2027?"</div>
+        <div class="card-pos">
+          <span class="pos-pill yes">YES · $0.21</span>
+          <span class="pos-meta">$120 bet</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scroll-hint"><span>SCROLL</span><span class="line"></span></div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────── -->
+<!-- SLIDE 2 — THE PROBLEM                                       -->
+<!-- ────────────────────────────────────────────────────────── -->
+<section class="slide" id="s2">
+  <div class="meta">
+    <div class="brand"><span class="dot"></span>THE SETUP</div>
+    <div class="num">02<span class="dim"> / </span><b>08</b></div>
+  </div>
+
+  <div class="slide-body">
+    <div class="kicker">PROBLEM</div>
+    <h2>Prediction markets gave us liquidity.<br/><span class="serif">They forgot the people.</span></h2>
+
+    <div class="problem-grid">
+      <div class="problem-col">
+        <div class="label">What Polymarket looks like</div>
+        <div class="title">A spreadsheet of opinions.</div>
+        <div class="pm-row head"><div class="q">Market</div><div class="y">YES</div><div class="n">NO</div></div>
+        <div class="pm-row"><div class="q">BTC above $150k by July</div><div class="y">$0.35</div><div class="n">$0.65</div></div>
+        <div class="pm-row"><div class="q">Lakers make playoffs</div><div class="y">$0.38</div><div class="n">$0.62</div></div>
+        <div class="pm-row"><div class="q">Fed cuts rates in Q3</div><div class="y">$0.72</div><div class="n">$0.28</div></div>
+        <div class="pm-row"><div class="q">OpenAI IPO before 2027</div><div class="y">$0.21</div><div class="n">$0.79</div></div>
+        <p style="margin-top: 16px; color: var(--dim); font-size: 12px; line-height:1.5">Deep liquidity. Zero discovery. No reason to come back.</p>
+      </div>
+
+      <div class="problem-col">
+        <div class="label">What every other opinion already looks like</div>
+        <div class="title">A feed worth scrolling.</div>
+        <div class="tweet">
+          <div class="av v3"></div>
+          <div class="tweet-body">
+            <div class="tweet-name">elliot <span>@elliot_l · 2h</span></div>
+            <div class="tweet-text">there is no universe where BTC doesn't break $150k by July. screenshot this.</div>
+            <div class="tweet-stats"><span><b>284</b>replies</span><span><b>1.2k</b>likes</span><span><b>$0</b>at stake</span></div>
+          </div>
+        </div>
+        <div class="tweet" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line)">
+          <div class="av v2"></div>
+          <div class="tweet-body">
+            <div class="tweet-name">manish <span>@mn · 6h</span></div>
+            <div class="tweet-text">lakers are cooked this year and no one is talking about it</div>
+            <div class="tweet-stats"><span><b>92</b>replies</span><span><b>418</b>likes</span><span><b>$0</b>at stake</span></div>
+          </div>
+        </div>
+        <p style="margin-top: auto; color: var(--dim); font-size: 12px; padding-top: 12px; line-height:1.5">Infinite discovery. Infinite engagement. Zero conviction behind it.</p>
+      </div>
+    </div>
+
+    <div class="insight-row">
+      <div>
+        <div class="big">$9B+<span class="accent">.</span></div>
+        <div class="lbl">Polymarket volume in 2024. The liquidity is solved.</div>
+      </div>
+      <div>
+        <div class="big">$0<span class="accent">.</span></div>
+        <div class="lbl">Paid to the people whose calls move those markets. Creators carry discovery for free.</div>
+      </div>
+      <div>
+        <div class="big">0<span class="accent">.</span></div>
+        <div class="lbl">Mobile-native apps where social calls cost real money.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────── -->
+<!-- SLIDE 3 — THE SOLUTION                                      -->
+<!-- ────────────────────────────────────────────────────────── -->
+<section class="slide" id="s3">
+  <div class="meta">
+    <div class="brand"><span class="dot"></span>THE IDEA</div>
+    <div class="num">03<span class="dim"> / </span><b>08</b></div>
+  </div>
+
+  <div class="slide-body">
+    <div class="solution-grid">
+      <div class="solution-text">
+        <div class="kicker">SOLUTION</div>
+        <h2>The social layer on top of every prediction market.</h2>
+        <p class="lead">hunch.fun is Twitter for predictions &mdash; except every post is backed by real money on chain.</p>
+
+        <ul class="feature-list">
+          <li>
+            <span class="ix">01</span>
+            <div class="ft"><b>Every trade auto-broadcasts.</b> Trading <em>is</em> content creation. No extra step.</div>
+          </li>
+          <li>
+            <span class="ix">02</span>
+            <div class="ft"><b>One tap to copy.</b> Followers buy the same side at current price in a single Seed Vault signature.</div>
+          </li>
+          <li>
+            <span class="ix">03</span>
+            <div class="ft"><b>Broadcasters earn 1%</b> of every attributed trade &mdash; on-chain, instant, atomic.</div>
+          </li>
+          <li>
+            <span class="ix">04</span>
+            <div class="ft"><b>Track records are unfakeable.</b> Every bet is a Solana transaction. Conviction is a number you earn.</div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="solution-card">
+        <div class="sc-hd">
+          <div class="av"></div>
+          <div style="flex:1">
+            <div class="name">@ved</div>
+            <div class="meta-row"><span>just now</span><span>·</span><span class="score">87 🔥</span><span>·</span><span>8/10 ✓</span></div>
+          </div>
+        </div>
+        <div class="sc-q">"Will BTC be above $150k by July?"</div>
+        <div class="sc-stats">
+          <div>
+            <div class="sc-stat-label">Position</div>
+            <div class="sc-stat-val green">YES · $0.35</div>
+          </div>
+          <div>
+            <div class="sc-stat-label">Bet size</div>
+            <div class="sc-stat-val">$50.00</div>
+          </div>
+          <div>
+            <div class="sc-stat-label">Payout</div>
+            <div class="sc-stat-val green">$142.85</div>
+          </div>
+          <div>
+            <div class="sc-stat-label">Resolves</div>
+            <div class="sc-stat-val">Jul 31</div>
+          </div>
+        </div>
+        <div class="sc-actions">
+          <button class="bcopy">Copy Trade</button>
+          <button class="bbet">Bet ›</button>
+        </div>
+        <div class="sc-social">
+          <span>↗ Share</span>
+          <span>💬 12</span>
+          <span>🔥 48</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────── -->
+<!-- SLIDE 4 — THE LOOP                                          -->
+<!-- ────────────────────────────────────────────────────────── -->
+<section class="slide" id="s4">
+  <div class="meta">
+    <div class="brand"><span class="dot"></span>THE MECHANIC</div>
+    <div class="num">04<span class="dim"> / </span><b>08</b></div>
+  </div>
+
+  <div class="slide-body loop-container">
+    <div class="kicker">THE LOOP</div>
+    <h2>One mechanic. <span class="serif">Five stages.</span> The flywheel runs itself.</h2>
+
+    <div class="loop-stages">
+      <div class="loop-stage">
+        <div class="stage-num">/ 01</div>
+        <div class="stage-name">See</div>
+        <div class="stage-desc">A real-money prediction lands in your feed, made by someone with a track record.</div>
+      </div>
+      <div class="loop-stage">
+        <div class="stage-num">/ 02</div>
+        <div class="stage-name">Bet</div>
+        <div class="stage-desc">One tap copies the trade. Seed Vault signs. Done in under three seconds.</div>
+      </div>
+      <div class="loop-stage">
+        <div class="stage-num">/ 03</div>
+        <div class="stage-name">Broadcast</div>
+        <div class="stage-desc">Your trade is now a post. Immutable. On-chain. Visible to everyone you know.</div>
+      </div>
+      <div class="loop-stage">
+        <div class="stage-num">/ 04</div>
+        <div class="stage-name">Follow</div>
+        <div class="stage-desc">Others copy you. You pay them. They pay you. Reputation compounds.</div>
+      </div>
+      <div class="loop-stage">
+        <div class="stage-num">/ 05</div>
+        <div class="stage-name">Earn</div>
+        <div class="stage-desc">When markets resolve, winners get a shareable card. It goes viral. New users land in the feed.</div>
+      </div>
+    </div>
+
+    <div class="loop-flywheel">
+      <div class="flywheel-text">
+        <div class="h">This is the only feed where opinions cost money.</div>
+        <div class="p">And that's the entire point. The signal is real because the stakes are real.</div>
+      </div>
+      <div class="flywheel-eq">conviction<span class="op">×</span>followers<span class="op">×</span>volume<span class="res">= moat</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────── -->
+<!-- SLIDE 5 — WHY NOW                                           -->
+<!-- ────────────────────────────────────────────────────────── -->
+<section class="slide" id="s5">
+  <div class="meta">
+    <div class="brand"><span class="dot"></span>TIMING</div>
+    <div class="num">05<span class="dim"> / </span><b>08</b></div>
+  </div>
+
+  <div class="slide-body">
+    <div class="kicker">WHY NOW</div>
+    <h2>Three things had to be true.<br/><span class="serif">They all just became true.</span></h2>
+
+    <div class="why-pillars">
+      <div class="pillar">
+        <div class="badge">PROVEN</div>
+        <div class="num">/ 01</div>
+        <div class="title">Social trading works on Solana.</div>
+        <div class="body">Vector.fun pioneered social trading for memecoins on Solana. Massive traction. Acquired by Coinbase last year. The thesis is no longer a thesis &mdash; it's a precedent.</div>
+        <div class="stat">
+          <div class="big">$500M</div>
+          <div class="lbl">Volume · 20k DAU · acquired</div>
+        </div>
+      </div>
+
+      <div class="pillar">
+        <div class="badge">SHIPPED</div>
+        <div class="num">/ 02</div>
+        <div class="title">Liquidity is solved.</div>
+        <div class="body">Jupiter shipped on-chain prediction markets aggregating Polymarket + Kalshi. We don't build a matching engine, source liquidity, or settle bets. We get an unsigned transaction and ship UX.</div>
+        <div class="stat">
+          <div class="big">2 lines</div>
+          <div class="lbl">Of code to place a bet</div>
+        </div>
+      </div>
+
+      <div class="pillar">
+        <div class="badge">LIVE</div>
+        <div class="num">/ 03</div>
+        <div class="title">Distribution arrived.</div>
+        <div class="body">Solana Seeker ships with a hardware Seed Vault on every device and a 0% commission dApp Store. Every owner is crypto-native by definition. We are the social app for the phone.</div>
+        <div class="stat">
+          <div class="big">0%</div>
+          <div class="lbl">App store fee · vs Google's 30%</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="why-bottom">
+      <div class="punch">The wedge isn't an idea. <span class="accent">It's a window.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────── -->
+<!-- SLIDE 6 — BUSINESS MODEL                                    -->
+<!-- ────────────────────────────────────────────────────────── -->
+<section class="slide" id="s6">
+  <div class="meta">
+    <div class="brand"><span class="dot"></span>REVENUE</div>
+    <div class="num">06<span class="dim"> / </span><b>08</b></div>
+  </div>
+
+  <div class="slide-body">
+    <div class="kicker">BUSINESS MODEL</div>
+    <h2>Three revenue lines.<br/><span class="serif">Aligned across every side of the table.</span></h2>
+
+    <div class="biz-grid">
+      <div class="biz-text">
+        <div class="biz-stream">
+          <div class="pct">2%</div>
+          <div>
+            <div class="lbl">Platform fee on every trade</div>
+            <div class="dsc">Injected into Jupiter's unsigned transaction or atomically bundled via Jito. Day-one revenue, every bet.</div>
+          </div>
+        </div>
+        <div class="biz-stream">
+          <div class="pct">1%</div>
+          <div>
+            <div class="lbl">Broadcaster reward on copied trades</div>
+            <div class="dsc">Paid directly to the broadcaster on-chain. This is our growth engine &mdash; creators pull their followers in.</div>
+          </div>
+        </div>
+        <div class="biz-stream">
+          <div class="pct">50&ndash;255 bps</div>
+          <div>
+            <div class="lbl">On-ramp swap referral</div>
+            <div class="dsc">Every user funding their wallet via Jupiter Ultra Swap pays us a referral fee. Revenue before the first bet.</div>
+          </div>
+        </div>
+        <div class="biz-stream">
+          <div class="pct">soon</div>
+          <div>
+            <div class="lbl">Premium + Sponsored Markets</div>
+            <div class="dsc">Subscription tier (analytics, alerts, unlimited follows) and project-sponsored markets in Q3.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="trade-viz">
+        <div class="hd">
+          <span>EXAMPLE TRADE</span>
+          <span class="live"><span class="pulse"></span>LIVE</span>
+        </div>
+        <div class="trade-input"><span class="ccy">$</span>10.00</div>
+        <div class="trade-input-lbl">User bets YES &middot; via @ved's broadcast</div>
+
+        <div class="trade-bar">
+          <div class="tb-trade"></div>
+          <div class="tb-platform"></div>
+          <div class="tb-broadcaster"></div>
+        </div>
+
+        <div class="breakdown">
+          <div class="br-row">
+            <div class="swatch" style="background:var(--accent)"></div>
+            <div class="name">To market <span class="pct-tag">97%</span></div>
+            <div class="v">$9.70</div>
+          </div>
+          <div class="br-row">
+            <div class="swatch" style="background:var(--accent-2)"></div>
+            <div class="name">Platform fee <span class="pct-tag">2%</span></div>
+            <div class="v">$0.20</div>
+          </div>
+          <div class="br-row">
+            <div class="swatch" style="background:#F472B6"></div>
+            <div class="name">@ved (broadcaster) <span class="pct-tag">1%</span></div>
+            <div class="v">$0.10</div>
+          </div>
+        </div>
+
+        <div class="at-scale">
+          <div>
+            <div class="l">At $5M monthly volume</div>
+            <div class="v">$100K MRR</div>
+          </div>
+          <div>
+            <div class="l">Paid to creators</div>
+            <div class="v">$50K /mo</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────── -->
+<!-- SLIDE 7 — COMPETITIVE LANDSCAPE                             -->
+<!-- ────────────────────────────────────────────────────────── -->
+<section class="slide" id="s7">
+  <div class="meta">
+    <div class="brand"><span class="dot"></span>POSITION</div>
+    <div class="num">07<span class="dim"> / </span><b>08</b></div>
+  </div>
+
+  <div class="slide-body">
+    <div class="kicker">COMPETITIVE LANDSCAPE</div>
+    <h2>Everyone has one or two.<br/><span class="serif">No one has all four.</span></h2>
+
+    <div class="comp-grid">
+      <div class="comp-text">
+        <div class="comp-list">
+          <div class="comp-row head">
+            <div class="nm">Player</div>
+            <div class="col-lbl">Social</div>
+            <div class="col-lbl">Real $</div>
+            <div class="col-lbl">Mobile</div>
+            <div class="col-lbl">Creator</div>
+          </div>
+          <div class="comp-row">
+            <div class="nm">Polymarket</div>
+            <div class="chk no">·</div><div class="chk yes">✓</div><div class="chk no">·</div><div class="chk no">·</div>
+          </div>
+          <div class="comp-row">
+            <div class="nm">Kalshi</div>
+            <div class="chk no">·</div><div class="chk yes">✓</div><div class="chk no">·</div><div class="chk no">·</div>
+          </div>
+          <div class="comp-row">
+            <div class="nm">Jupiter Prediction</div>
+            <div class="chk no">·</div><div class="chk yes">✓</div><div class="chk no">·</div><div class="chk no">·</div>
+          </div>
+          <div class="comp-row hunch">
+            <div class="nm">hunch.fun</div>
+            <div class="chk yes">✓</div><div class="chk yes">✓</div><div class="chk yes">✓</div><div class="chk yes">✓</div>
+          </div>
+        </div>
+        <p style="margin-top: 28px; color: var(--muted); font-size: 14px; max-width: 44ch">Polymarket has the liquidity. Jupiter has the rails. Neither has the phone in your pocket and the wallet inside it. We do.</p>
+      </div>
+
+      <div class="matrix-wrap">
+        <div class="matrix">
+          <div class="matrix-quad"></div>
+          <div class="axis top">REAL MONEY</div>
+          <div class="axis bot">PLAY MONEY</div>
+          <div class="axis left">TRADING-FIRST</div>
+          <div class="axis right">SOCIAL-FIRST</div>
+
+          <!-- plot points; positioned as % of matrix interior -->
+          <div class="plot" style="left: 22%; top: 22%"><div class="pt"></div><div class="nm">Polymarket</div></div>
+          <div class="plot" style="left: 28%; top: 36%"><div class="pt"></div><div class="nm">Kalshi</div></div>
+          <div class="plot" style="left: 36%; top: 28%"><div class="pt"></div><div class="nm">Jupiter</div></div>
+          <div class="plot hunch" style="left: 76%; top: 28%"><div class="pt"></div><div class="nm">hunch.fun</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────── -->
+<!-- SLIDE 8 — TRACTION                                          -->
+<!-- ────────────────────────────────────────────────────────── -->
+<section class="slide slide-traction" id="s8">
+  <div class="meta">
+    <div class="brand"><span class="dot"></span>PROOF</div>
+    <div class="num">08<span class="dim"> / </span><b>08</b></div>
+  </div>
+
+  <div class="slide-body">
+    <div class="live-badge"><span class="pulse"></span>Private Beta &middot; Live Now</div>
+
+    <h2>Already on chain.<br/><span class="serif">Already paying off.</span></h2>
+
+    <p class="lead">We ran a closed beta with ten users on Solana mainnet. Five of them copied a top broadcaster's wallet on the first day. <span class="accent">Every single one ended in profit.</span></p>
+
+    <div class="traction-stats">
+      <div class="t-stat">
+        <div class="t-big">10</div>
+        <div class="t-lbl">Private beta users<br/>on Solana mainnet</div>
+      </div>
+      <div class="t-stat hero">
+        <div class="t-big">5<span class="den">/5</span></div>
+        <div class="t-lbl">Copied a top wallet &middot;<br/><b>all ended in profit</b></div>
+      </div>
+      <div class="t-stat">
+        <div class="t-big">+25%</div>
+        <div class="t-lbl">Average return<br/>across 14 days</div>
+      </div>
+    </div>
+
+    <div class="traction-quote">
+      The flywheel works at 10. <span class="accent">Now we run it at 10,000.</span>
+    </div>
+  </div>
+
+  <div class="traction-foot">
+    <div>
+      <div class="name">ved</div>
+      <div>founder &middot; hunch.fun</div>
+    </div>
+    <div style="text-align:right">
+      <div class="name brand-end">hunch.fun</div>
+      <div>2026</div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<script>
+  // build the slide indicator
+  const slides = document.querySelectorAll('.slide');
+  const indicator = document.getElementById('indicator');
+  const deck = document.getElementById('deck');
+
+  slides.forEach((s, i) => {
+    const a = document.createElement('a');
+    a.dataset.target = s.id;
+    a.title = `Slide ${i+1}`;
+    a.addEventListener('click', () => {
+      s.scrollIntoView({behavior:'smooth'});
+    });
+    indicator.appendChild(a);
+  });
+
+  // intersection observer to highlight current slide
+  const dots = indicator.querySelectorAll('a');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if(entry.isIntersecting){
+        const idx = Array.from(slides).indexOf(entry.target);
+        dots.forEach((d,i) => d.classList.toggle('active', i===idx));
+      }
+    });
+  }, {root: deck, threshold: 0.55});
+
+  slides.forEach(s => io.observe(s));
+
+  // keyboard navigation
+  let currentIdx = 0;
+  document.addEventListener('keydown', (e) => {
+    if(e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' '){
+      e.preventDefault();
+      currentIdx = Math.min(currentIdx + 1, slides.length - 1);
+      slides[currentIdx].scrollIntoView({behavior:'smooth'});
+    } else if(e.key === 'ArrowUp' || e.key === 'PageUp'){
+      e.preventDefault();
+      currentIdx = Math.max(currentIdx - 1, 0);
+      slides[currentIdx].scrollIntoView({behavior:'smooth'});
+    } else if(e.key === 'Home'){
+      currentIdx = 0;
+      slides[0].scrollIntoView({behavior:'smooth'});
+    } else if(e.key === 'End'){
+      currentIdx = slides.length - 1;
+      slides[currentIdx].scrollIntoView({behavior:'smooth'});
+    }
+  });
+
+  // sync currentIdx on manual scroll
+  io.takeRecords();
+  const ioSync = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if(entry.isIntersecting){
+        currentIdx = Array.from(slides).indexOf(entry.target);
+      }
+    });
+  }, {root: deck, threshold: 0.55});
+  slides.forEach(s => ioSync.observe(s));
+</script>
+
+</body>
+</html>

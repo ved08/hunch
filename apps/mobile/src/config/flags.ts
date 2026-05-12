@@ -10,15 +10,24 @@ function readBool(value: string | undefined, fallback: boolean): boolean {
   return fallback;
 }
 
-// When false, the wallet provider skips loading the MWA native module and
-// serves a demo pubkey. Bet flow calls POST /bet/build (to prove the backend
-// is reachable) but skips signing + POST /bet/submit.
-export const WALLET_ENABLED = readBool(
-  process.env.EXPO_PUBLIC_WALLET_ENABLED,
-  false
-);
+// Showcase mode: fake wallet auto-connected, bets are local-only (no backend,
+// no chain). Broadcasts/profile read from a local zustand store seeded with
+// sample data. See memory/project_demo_mode.md for the design rationale.
+export const DEMO_MODE = readBool(process.env.EXPO_PUBLIC_DEMO_MODE, false);
 
-// A valid base58 32-byte pubkey (the System Program) used as a stand-in when
-// WALLET_ENABLED is false. Satisfies the API's `walletAddress: z.string().min(32)`
-// check and is obviously fake.
-export const DEMO_WALLET_ADDRESS = "11111111111111111111111111111111";
+// SecureStore key for the chosen demo pubkey (stable across launches).
+export const DEMO_PUBKEY_KEY = "hunch.demo.pubkey.v1";
+
+// Pool of real valid Solana pubkeys (pre-generated, no private keys retained).
+// Demo mode picks one at random per install — avoids any runtime crypto
+// dependency on @solana/web3.js Keypair.generate.
+export const DEMO_PUBKEY_POOL = [
+  "8ZpZFEcn36UpbPUzTyXbmZpX98zCpdfCAHBgY2tA9gnh",
+  "BwYtV5VmsTjGWZkAV574xXbkj8Ki3cw1HoAnr1n6FBTG",
+  "3ZKgdiNbW6YUQwBHQ5M52dTf4Nwvha1jPskgaKGpFN7S",
+  "BDLrVXZp9VUUrnc8gq17fm81PppRy9NNg5hdJjZnRXWW",
+  "JxcTje6fPYE34JEJ4VvNBdEoQ7VXRsjsPo4YzEAV9Tk",
+  "3AUnhbdaMNZ3XzbaKwUrFPqpbBkPqoDecFkQAuyupyNp",
+  "CdcP1eskfy2KE4fUFdtcmVLwTXxCijqJirKGYkZwbxzU",
+  "9APPuPViVEdrKRr3spZFkRoC3zp9HALFa9LnLnrRmxEi",
+] as const;

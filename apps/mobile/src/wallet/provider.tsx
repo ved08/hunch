@@ -11,7 +11,13 @@ import { NativeModules, Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { PublicKey, VersionedTransaction, Transaction } from "@solana/web3.js";
 import { Buffer } from "buffer";
-import { WALLET_ENABLED, DEMO_WALLET_ADDRESS } from "../config/flags";
+import { DEMO_MODE, DEMO_PUBKEY_KEY, DEMO_PUBKEY_POOL } from "../config/flags";
+
+function pickDemoPubkey(): PublicKey {
+  const idx = Math.floor(Math.random() * DEMO_PUBKEY_POOL.length);
+  const choice = DEMO_PUBKEY_POOL[idx] ?? DEMO_PUBKEY_POOL[0];
+  return new PublicKey(choice);
+}
 
 const PUBKEY_KEY = "hunch.wallet.pubkey";
 const AUTH_TOKEN_KEY = "hunch.wallet.authToken";
@@ -39,7 +45,7 @@ const WalletContext = createContext<WalletState | null>(null);
 type MwaModule = typeof import("@solana-mobile/mobile-wallet-adapter-protocol-web3js");
 
 function loadMwa(): MwaModule | null {
-  if (!WALLET_ENABLED) return null;
+  if (DEMO_MODE) return null;
   if (Platform.OS !== "android") return null;
   // Only require the module if the native TurboModule is registered in the
   // binary. In Expo Go it isn't, and the package's top-level getEnforcing
@@ -59,18 +65,36 @@ function pubkeyFromBase64(address: string): PublicKey {
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const mwa = useMemo(() => loadMwa(), []);
-  const isDemo = !WALLET_ENABLED;
-  const [pubkey, setPubkey] = useState<PublicKey | null>(
-    isDemo ? new PublicKey(DEMO_WALLET_ADDRESS) : null
-  );
+  const isDemo = DEMO_MODE;
+  const [pubkey, setPubkey] = useState<PublicKey | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const authTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (isDemo) return;
     let cancelled = false;
     (async () => {
+      if (isDemo) {
+        const existing = await SecureStore.getItemAsync(DEMO_PUBKEY_KEY).catch(
+          () => null
+        );
+        if (cancelled) return;
+        if (existing) {
+          try {
+            setPubkey(new PublicKey(existing));
+            return;
+          } catch {
+            /* fall through to pick a fresh one */
+          }
+        }
+        const fresh = pickDemoPubkey();
+        SecureStore.setItemAsync(DEMO_PUBKEY_KEY, fresh.toBase58()).catch(
+          () => {}
+        );
+        if (cancelled) return;
+        setPubkey(fresh);
+        return;
+      }
       const [storedPub, storedToken] = await Promise.all([
         SecureStore.getItemAsync(PUBKEY_KEY).catch(() => null),
         SecureStore.getItemAsync(AUTH_TOKEN_KEY).catch(() => null),
@@ -92,7 +116,40 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   const connect = useCallback(async () => {
     setError(null);
-    if (isDemo) return; // already "connected" to demo pubkey
+    if (isDemo) {
+      setIsConnecting(true);
+      try {
+        await new Promise((r) => setTimeout(r, 400));
+        if (!pubkey) {
+          // Restore the stored demo pubkey so disconnect→reconnect feels
+          // like the same wallet. Fall back to a fresh pick if missing or
+          // corrupt — never throw to the user.
+          let restored: PublicKey | null = null;
+          try {
+            const stored = await SecureStore.getItemAsync(
+              DEMO_PUBKEY_KEY
+            ).catch(() => null);
+            if (stored) restored = new PublicKey(stored);
+          } catch {
+            restored = null;
+          }
+          if (!restored) {
+            restored = pickDemoPubkey();
+            SecureStore.setItemAsync(
+              DEMO_PUBKEY_KEY,
+              restored.toBase58()
+            ).catch(() => {});
+          }
+          setPubkey(restored);
+        }
+      } catch {
+        // Last-ditch fallback so demo connect cannot fail.
+        setPubkey(new PublicKey(DEMO_PUBKEY_POOL[0]));
+      } finally {
+        setIsConnecting(false);
+      }
+      return;
+    }
     if (!mwa) {
       setError(
         Platform.OS === "android"
@@ -120,10 +177,16 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsConnecting(false);
     }
-  }, [mwa, isDemo]);
+  }, [mwa, isDemo, pubkey]);
 
   const disconnect = useCallback(async () => {
-    if (isDemo) return;
+    if (isDemo) {
+      // Keep DEMO_PUBKEY_KEY in storage so reconnect restores the same
+      // wallet identity (matches real-wallet UX where the wallet itself
+      // doesn't change between disconnect/reconnect).
+      setPubkey(null);
+      return;
+    }
     authTokenRef.current = null;
     setPubkey(null);
     await Promise.all([
@@ -135,7 +198,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const signTransaction = useCallback(
     async (base64Tx: string): Promise<string> => {
       if (isDemo) {
-        throw new Error("DEMO_MODE_NO_SIGN");
+        // Pretend to sign. Caller decides what to do with this sig — in demo
+        // we never submit it.
+        await new Promise((r) => setTimeout(r, 600));
+        return `demo:${Date.now().toString(36)}`;
       }
       if (!mwa) {
         throw new Error("Wallet adapter unavailable (requires dev client on Android)");

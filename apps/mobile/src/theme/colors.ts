@@ -15,6 +15,9 @@ export const colors = {
   accentSoft: "rgba(201, 240, 94, 0.14)",
   danger: "#D94B5C",
   scrim: "rgba(0, 0, 0, 0.6)",
+  brand: "#CA2D3D",
+  brandDeep: "#9B1E2B",
+  brandInk: "#1A0508",
 } as const;
 
 export type ColorToken = keyof typeof colors;

@@ -7,8 +7,8 @@ import { EmptyState } from "../../src/components/EmptyState";
 import { colors, radii, space } from "../../src/theme/index";
 import { formatUsd, relativeTime, truncatePubkey } from "../../src/utils/format";
 import { nativeStrToUsd } from "../../src/utils/native-amount";
-import { useBroadcasts, type LocalBroadcast } from "../../src/store/broadcasts";
 import { useWallet } from "../../src/wallet/provider";
+import { useBroadcasts, type LocalBroadcast } from "../../src/store/broadcasts";
 import { listBroadcasts, type RemoteBroadcast } from "../../src/api/broadcasts";
 
 type Row = {
@@ -19,6 +19,7 @@ type Row = {
   marketQuestion: string;
   walletAddress: string;
   createdAt: string;
+  status?: "live" | "won" | "lost";
 };
 
 function fromRemote(b: RemoteBroadcast): Row {
@@ -42,6 +43,7 @@ function fromLocal(b: LocalBroadcast): Row {
     marketQuestion: b.marketQuestion,
     walletAddress: b.walletAddress,
     createdAt: b.createdAt,
+    status: b.status,
   };
 }
 
@@ -69,14 +71,19 @@ export default function BroadcastsScreen() {
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Text variant="footnote" family="sansMedium" tone="fgMuted" style={styles.kicker}>
-          {isDemo ? "DEMO LEDGER · LOCAL ONLY" : "EVERY TRADE, ON THE RECORD"}
+          EVERY TRADE, ON THE RECORD
         </Text>
         <Text variant="title" family="serif" tone="fg">
           Public receipts
         </Text>
       </View>
 
-      {!isDemo && remote.isLoading ? (
+      {!isDemo && !wallet ? (
+        <EmptyState
+          title="Connect to see receipts"
+          body="Connect your Solana wallet to view your on-chain hunches."
+        />
+      ) : !isDemo && remote.isLoading ? (
         <View style={styles.loader}>
           <ActivityIndicator color={colors.fgMuted} />
         </View>
@@ -114,26 +121,48 @@ export default function BroadcastsScreen() {
 
 function BroadcastRow({ item }: { item: Row }) {
   const sideColor = item.side === "YES" ? colors.yes : colors.no;
+  const statusLabel =
+    item.status === "won" ? "WON" : item.status === "lost" ? "LOST" : null;
+  const statusColor =
+    item.status === "won" ? colors.yes : item.status === "lost" ? colors.no : null;
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        <View
-          style={[
-            styles.sideBadge,
-            {
-              backgroundColor:
-                item.side === "YES" ? colors.yesSoft : colors.noSoft,
-              borderColor: sideColor,
-            },
-          ]}
-        >
-          <Text
-            variant="caption"
-            family="sansSemibold"
-            style={{ color: sideColor, letterSpacing: 1.5 }}
+        <View style={{ flexDirection: "row", gap: space.sm, alignItems: "center" }}>
+          <View
+            style={[
+              styles.sideBadge,
+              {
+                backgroundColor:
+                  item.side === "YES" ? colors.yesSoft : colors.noSoft,
+                borderColor: sideColor,
+              },
+            ]}
           >
-            {item.side}
-          </Text>
+            <Text
+              variant="caption"
+              family="sansSemibold"
+              style={{ color: sideColor, letterSpacing: 1.5 }}
+            >
+              {item.side}
+            </Text>
+          </View>
+          {statusLabel && statusColor ? (
+            <View
+              style={[
+                styles.statusBadge,
+                { borderColor: statusColor },
+              ]}
+            >
+              <Text
+                variant="caption"
+                family="sansSemibold"
+                style={{ color: statusColor, letterSpacing: 1.5 }}
+              >
+                {statusLabel}
+              </Text>
+            </View>
+          ) : null}
         </View>
         <Text variant="footnote" family="mono" tone="fgMuted">
           {formatUsd(item.amountUsd)} · {item.depositMint}
@@ -196,6 +225,12 @@ const styles = StyleSheet.create({
   sideBadge: {
     paddingHorizontal: space.md,
     paddingVertical: 4,
+    borderRadius: radii.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  statusBadge: {
+    paddingHorizontal: space.sm,
+    paddingVertical: 3,
     borderRadius: radii.pill,
     borderWidth: StyleSheet.hairlineWidth,
   },
